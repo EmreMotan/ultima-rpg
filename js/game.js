@@ -478,7 +478,8 @@ function movePlayer(dx, dy) {
 
   const npc = NPCs.find(n => n.x === newX && n.y === newY);
   if (npc) {
-    addMessage(`${npc.name} is in your way.`);
+    // Bump into NPC to talk
+    showDialogue(npc);
     return;
   }
 
