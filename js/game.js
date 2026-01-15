@@ -1,8 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
-// Version: 0.8.2
+// Version: 0.8.3
 
-const VERSION = '0.8.2';
+const VERSION = '0.8.3';
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
 const WORLD_HEIGHT = 32;
@@ -525,8 +525,8 @@ function movePlayer(dx, dy) {
     if (item.type.id === 'potion') {
       state.player.inventory.push('potion');
       state.items.splice(itemIndex, 1);
-      addMessage(`🧪 Potion collected! (${state.player.inventory.length} total)`);
-      updateInventoryUI();
+      addMessage(`🧪 Potion collected! (${state.player.inventory.length} in bag)`);
+      renderInventory();
     }
   }
 
@@ -601,42 +601,49 @@ function setupControls() {
   document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
   document.getElementById('btn-action').addEventListener('click', handleAction);
 
-  // Inventory controls
-  document.getElementById('btn-inventory').addEventListener('click', function() {
+  // Inventory button - direct inline handler
+  const invBtn = document.getElementById('btn-inventory');
+  invBtn.onclick = function() {
     const panel = document.getElementById('inventory-panel');
-    const isHidden = panel.classList.contains('hidden');
-    if (isHidden) {
+    if (panel.classList.contains('hidden')) {
       panel.classList.remove('hidden');
+      renderInventory();
       addMessage("📦 Inventory opened");
     } else {
       panel.classList.add('hidden');
       addMessage("📦 Inventory closed");
     }
-    updateInventoryUI();
-  });
+  };
 
-  document.getElementById('btn-close-inventory').addEventListener('click', function() {
+  // Close button
+  document.getElementById('btn-close-inventory').onclick = function() {
     document.getElementById('inventory-panel').classList.add('hidden');
     addMessage("📦 Inventory closed");
-  });
+  };
 }
 
-function updateInventoryUI() {
+function renderInventory() {
   const grid = document.getElementById('inventory-grid');
   if (!grid) return;
 
   const potionCount = state.player.inventory.filter(i => i === 'potion').length;
-
-  // Create 12 slots
   let html = '';
+
   for (let i = 0; i < 12; i++) {
     if (i < potionCount) {
-      html += `<div class="inventory-slot has-item" onclick="usePotion()">🧪</div>`;
+      html += `<div class="inventory-slot has-item" data-index="${i}">🧪</div>`;
     } else {
       html += `<div class="inventory-slot"></div>`;
     }
   }
   grid.innerHTML = html;
+
+  // Add click handlers for potions
+  grid.querySelectorAll('.has-item').forEach(slot => {
+    slot.onclick = function() {
+      usePotion();
+    };
+  });
 }
 
 function usePotion() {
@@ -654,7 +661,7 @@ function usePotion() {
 
   addMessage(`🧪 Used potion: +${actualHeal} HP`);
   updateUI();
-  updateInventoryUI();
+  renderInventory();
 }
 
 function handleAction() {
