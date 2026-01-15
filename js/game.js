@@ -1,8 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
-// Version: 0.8.3
+// Version: 0.8.4
 
-const VERSION = '0.8.3';
+const VERSION = '0.8.4';
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
 const WORLD_HEIGHT = 32;
@@ -600,26 +600,19 @@ function setupControls() {
   document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
   document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
   document.getElementById('btn-action').addEventListener('click', handleAction);
+  document.getElementById('btn-inventory').addEventListener('click', openInventory);
+  document.getElementById('btn-close-inventory').addEventListener('click', closeInventory);
+}
 
-  // Inventory button - direct inline handler
-  const invBtn = document.getElementById('btn-inventory');
-  invBtn.onclick = function() {
-    const panel = document.getElementById('inventory-panel');
-    if (panel.classList.contains('hidden')) {
-      panel.classList.remove('hidden');
-      renderInventory();
-      addMessage("📦 Inventory opened");
-    } else {
-      panel.classList.add('hidden');
-      addMessage("📦 Inventory closed");
-    }
-  };
+function openInventory() {
+  document.getElementById('inventory-panel').classList.remove('hidden');
+  renderInventory();
+  addMessage("📦 Inventory opened");
+}
 
-  // Close button
-  document.getElementById('btn-close-inventory').onclick = function() {
-    document.getElementById('inventory-panel').classList.add('hidden');
-    addMessage("📦 Inventory closed");
-  };
+function closeInventory() {
+  document.getElementById('inventory-panel').classList.add('hidden');
+  addMessage("📦 Inventory closed");
 }
 
 function renderInventory() {
@@ -631,18 +624,21 @@ function renderInventory() {
 
   for (let i = 0; i < 12; i++) {
     if (i < potionCount) {
-      html += `<div class="inventory-slot has-item" data-index="${i}">🧪</div>`;
+      html += `<div class="inventory-slot has-item" data-slot="${i}">🧪</div>`;
     } else {
-      html += `<div class="inventory-slot"></div>`;
+      html += `<div class="inventory-slot" data-slot="${i}"></div>`;
     }
   }
   grid.innerHTML = html;
 
-  // Add click handlers for potions
-  grid.querySelectorAll('.has-item').forEach(slot => {
-    slot.onclick = function() {
-      usePotion();
-    };
+  // Add click handlers to all slots
+  grid.querySelectorAll('.inventory-slot').forEach(slot => {
+    slot.addEventListener('click', function() {
+      const slotIndex = parseInt(this.getAttribute('data-slot'));
+      if (slotIndex < potionCount) {
+        usePotion();
+      }
+    });
   });
 }
 
@@ -650,10 +646,7 @@ function usePotion() {
   const potionIndex = state.player.inventory.indexOf('potion');
   if (potionIndex === -1) return;
 
-  // Remove one potion
   state.player.inventory.splice(potionIndex, 1);
-
-  // Heal
   const healAmount = ITEMS.POTION.heal;
   const oldHp = state.player.hp;
   state.player.hp = Math.min(state.player.maxHp, state.player.hp + healAmount);
