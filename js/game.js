@@ -456,10 +456,13 @@ function movePlayer(dx, dy) {
   // Check for enemy encounter after movement (enemies move into you)
   const encountered = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (encountered) {
-    const enemyDied = playerAttackEnemy(encountered);
-    if (!enemyDied) {
-      enemyAttackPlayer(encountered);
-    }
+    // Enemy moved into YOU - they attack first (surprise!)
+    addMessage(`${encountered.name} attacks!`);
+    const playerDied = enemyAttackPlayer(encountered);
+    if (playerDied) return; // Player died, don't counter-attack
+    
+    // Player survives, counter-attack!
+    playerAttackEnemy(encountered);
     draw();
     return;
   }
