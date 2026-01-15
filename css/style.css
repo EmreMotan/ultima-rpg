@@ -38,8 +38,25 @@ body {
   padding: 4px 8px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 12px;
   border-bottom: 1px solid #444;
+}
+
+#btn-inventory {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: rgba(60, 60, 60, 0.9);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#btn-inventory:active {
+  background: #888;
 }
 
 #message-log {
@@ -175,3 +192,76 @@ body {
 #combat-log .victory { color: #ffff88; }
 #combat-log .levelup { color: #ff88ff; }
 #combat-log .death { color: #ff0000; font-weight: bold; }
+
+/* Inventory Panel */
+#inventory-panel {
+  position: absolute;
+  bottom: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  background: rgba(0, 0, 0, 0.95);
+  border: 2px solid #666;
+  border-radius: 8px;
+  padding: 12px;
+  pointer-events: auto;
+}
+
+#inventory-panel.hidden {
+  display: none;
+}
+
+#inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #ffd700;
+}
+
+#btn-close-inventory {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #666;
+  border-radius: 4px;
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.inventory-slot {
+  width: 40px;
+  height: 40px;
+  background: rgba(40, 40, 40, 0.8);
+  border: 1px solid #444;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.inventory-slot.has-item {
+  background: rgba(60, 60, 60, 0.8);
+  border-color: #888;
+}
+
+.inventory-slot:active {
+  background: #555;
+}
+
+#inventory-hint {
+  font-size: 10px;
+  color: #888;
+  text-align: center;
+}

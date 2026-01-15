@@ -28,12 +28,18 @@ const ENEMY_TYPES = {
 
 // Game state
 const state = {
-  player: { x: 16, y: 16, hp: 20, maxHp: 20, gold: 0, level: 1, exp: 0 },
+  player: { x: 16, y: 16, hp: 20, maxHp: 20, gold: 0, level: 1, exp: 0, inventory: [] },
   camera: { x: 0, y: 0 },
   world: [],
   messages: [],
   dialogueIndex: 0,
-  enemies: []
+  enemies: [],
+  items: [] // Potions on the ground
+};
+
+// Item types
+const ITEMS = {
+  POTION: { id: 'potion', name: 'Potion', color: '#00ff00', heal: 5 }
 };
 
 // NPCs
@@ -291,6 +297,23 @@ function draw() {
     ctx.stroke();
   });
 
+  // Draw items on the ground
+  state.items.forEach(item => {
+    const itemScreenX = (item.x - state.camera.x) * TILE_SIZE;
+    const itemScreenY = (item.y - state.camera.y) * TILE_SIZE;
+    if (itemScreenX < -TILE_SIZE || itemScreenX > canvas.width ||
+        itemScreenY < -TILE_SIZE || itemScreenY > canvas.height) return;
+
+    // Potion bottle shape
+    ctx.fillStyle = item.type.color;
+    ctx.fillRect(itemScreenX + 10, itemScreenY + 8, 12, 16);
+    ctx.fillRect(itemScreenX + 12, itemScreenY + 4, 8, 4);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(itemScreenX + 10, itemScreenY + 8, 12, 16);
+    ctx.strokeRect(itemScreenX + 12, itemScreenY + 4, 8, 4);
+  });
+
   updateUI();
 }
 
@@ -396,6 +419,16 @@ function playerAttackEnemy(enemy) {
     addMessage(`💀 ${winMsg}`);
     combatLog(winMsg, 'victory');
 
+    // Chance to drop potion (50%)
+    if (Math.random() < 0.5) {
+      state.items.push({
+        x: enemy.x,
+        y: enemy.y,
+        type: ITEMS.POTION
+      });
+      addMessage(`🧪 A potion was dropped!`);
+    }
+
     // Level up check
     if (state.player.exp >= state.player.level * 50) {
       state.player.level++;
@@ -483,6 +516,18 @@ function movePlayer(dx, dy) {
     return;
   }
 
+  // Check for items on the ground
+  const itemIndex = state.items.findIndex(i => i.x === newX && i.y === newY);
+  if (itemIndex !== -1) {
+    const item = state.items[itemIndex];
+    if (item.type.id === 'potion') {
+      state.player.inventory.push('potion');
+      state.items.splice(itemIndex, 1);
+      addMessage(`🧪 Potion collected! (${state.player.inventory.length} total)`);
+      updateInventoryUI();
+    }
+  }
+
   // Bump combat - walk into enemy to attack
   const enemy = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (enemy) {
@@ -553,6 +598,54 @@ function setupControls() {
   document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
   document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
   document.getElementById('btn-action').addEventListener('click', handleAction);
+
+  // Inventory controls
+  document.getElementById('btn-inventory').addEventListener('click', toggleInventory);
+  document.getElementById('btn-close-inventory').addEventListener('click', closeInventory);
+}
+
+function toggleInventory() {
+  const panel = document.getElementById('inventory-panel');
+  panel.classList.toggle('hidden');
+  updateInventoryUI();
+}
+
+function closeInventory() {
+  document.getElementById('inventory-panel').classList.add('hidden');
+}
+
+function updateInventoryUI() {
+  const grid = document.getElementById('inventory-grid');
+  const potionCount = state.player.inventory.filter(i => i === 'potion').length;
+
+  // Create 12 slots
+  let html = '';
+  for (let i = 0; i < 12; i++) {
+    if (i < potionCount) {
+      html += `<div class="inventory-slot has-item" onclick="usePotion()">🧪</div>`;
+    } else {
+      html += `<div class="inventory-slot"></div>`;
+    }
+  }
+  grid.innerHTML = html;
+}
+
+function usePotion() {
+  const potionIndex = state.player.inventory.indexOf('potion');
+  if (potionIndex === -1) return;
+
+  // Remove one potion
+  state.player.inventory.splice(potionIndex, 1);
+
+  // Heal
+  const healAmount = ITEMS.POTION.heal;
+  const oldHp = state.player.hp;
+  state.player.hp = Math.min(state.player.maxHp, state.player.hp + healAmount);
+  const actualHeal = state.player.hp - oldHp;
+
+  addMessage(`🧪 Used potion: +${actualHeal} HP`);
+  updateUI();
+  updateInventoryUI();
 }
 
 function handleAction() {
