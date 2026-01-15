@@ -348,9 +348,10 @@ function addMessage(text) {
 }
 
 // Bump combat system
+function playerAttackEnemy(enemy) {
   const playerDmg = 2 + Math.floor(Math.random() * 3); // 2-4 damage
   enemy.hp -= playerDmg;
-  addMessage(`You hit ${enemy.name} for ${playerDmg} damage!`);
+  addMessage(`⚔️ You hit ${enemy.name} for ${playerDmg} damage!`);
 
   if (enemy.hp <= 0) {
     enemy.alive = false;
@@ -358,7 +359,7 @@ function addMessage(text) {
     const gold = enemy.gold;
     state.player.exp += exp;
     state.player.gold += gold;
-    addMessage(`Victory! +${exp} EXP, +${gold} Gold`);
+    addMessage(`💀 Victory! +${exp} EXP, +${gold} Gold`);
 
     // Level up check
     if (state.player.exp >= state.player.level * 50) {
@@ -377,7 +378,7 @@ function addMessage(text) {
 function enemyAttackPlayer(enemy) {
   const enemyDmg = enemy.damage + Math.floor(Math.random() * 2) - 1;
   state.player.hp -= enemyDmg;
-  addMessage(`${enemy.name} hits you for ${enemyDmg} damage!`);
+  addMessage(`🩸 ${enemy.name} hits you for ${enemyDmg} damage!`);
 
   if (state.player.hp <= 0) {
     state.player.hp = 0;
@@ -389,6 +390,16 @@ function enemyAttackPlayer(enemy) {
     return true; // Player died
   }
   return false; // Player still alive
+}
+
+function flashStatus(color) {
+  const statusBar = document.getElementById('status-bar');
+  if (statusBar) {
+    statusBar.style.backgroundColor = color;
+    setTimeout(() => {
+      statusBar.style.backgroundColor = '';
+    }, 100);
+  }
 }
 
 function playerDefeated() {
