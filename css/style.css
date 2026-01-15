@@ -1,0 +1,92 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #000;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+  touch-action: none;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#game-canvas {
+  flex: 1;
+  background: #111;
+  display: block;
+}
+
+#ui-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+#status-bar {
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px 8px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  border-bottom: 1px solid #444;
+}
+
+#message-log {
+  position: absolute;
+  bottom: 120px;
+  left: 8px;
+  right: 8px;
+  font-size: 11px;
+  color: #aaa;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+}
+
+#controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.8));
+}
+
+#controls button {
+  width: 56px;
+  height: 56px;
+  border: 2px solid #666;
+  border-radius: 8px;
+  background: rgba(40, 40, 40, 0.9);
+  color: #fff;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#controls button:active {
+  background: #444;
+  border-color: #888;
+}
+
+#btn-action {
+  width: 64px;
+  height: 64px;
+  border-color: #5a5;
+  background: rgba(40, 60, 40, 0.9);
+}

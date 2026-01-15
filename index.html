@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Ultima RPG</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-overlay">
+      <div id="status-bar">
+        <span id="hp">HP: 10/10</span>
+        <span id="gold">Gold: 0</span>
+        <span id="level">LVL: 1</span>
+      </div>
+      <div id="message-log"></div>
+    </div>
+    <div id="controls">
+      <button id="btn-up">▲</button>
+      <button id="btn-left">◀</button>
+      <button id="btn-action">A</button>
+      <button id="btn-right">▶</button>
+      <button id="btn-down">▼</button>
+    </div>
+  </div>
+  <script src="js/game.js"></script>
+</body>
+</html>
