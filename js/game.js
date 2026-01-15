@@ -606,7 +606,14 @@ function setupControls() {
 
 function toggleInventory() {
   const panel = document.getElementById('inventory-panel');
-  panel.classList.toggle('hidden');
+  const isHidden = panel.classList.contains('hidden');
+  if (isHidden) {
+    panel.classList.remove('hidden');
+    addMessage("📦 Inventory opened");
+  } else {
+    panel.classList.add('hidden');
+    addMessage("📦 Inventory closed");
+  }
   updateInventoryUI();
 }
 
