@@ -486,16 +486,9 @@ function movePlayer(dx, dy) {
   // Bump combat - walk into enemy to attack
   const enemy = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (enemy) {
-    const enemyDied = playerAttackEnemy(enemy);
-    if (enemyDied) {
-      // Enemy died, move into their space
-      state.player.x = newX;
-      state.player.y = newY;
-    } else {
-      // Enemy survives and counter-attacks (only because you bumped them)
-      const playerDied = enemyAttackPlayer(enemy);
-      if (playerDied) return; // Don't move if died
-    }
+    // Attack the enemy, but stay in place
+    playerAttackEnemy(enemy);
+    // Don't move into the enemy's tile
     draw();
     return;
   }
@@ -511,15 +504,13 @@ function movePlayer(dx, dy) {
   // Move enemies after player moves
   moveEnemies();
 
-  // Check for enemy encounter after movement (enemies move into you)
+  // Check if an enemy moved into your space (you were already there)
   const encountered = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (encountered) {
-    // Enemy moved into YOU - they attack first (surprise!)
+    // Enemy moved into YOUR space - they attack first (surprise!)
     addMessage(`${encountered.name} attacks!`);
-    const playerDied = enemyAttackPlayer(encountered);
-    if (playerDied) return; // Player died, don't counter-attack
-    
-    // Player survives, counter-attack!
+    enemyAttackPlayer(encountered);
+    // You can counter-attack back!
     playerAttackEnemy(encountered);
     draw();
     return;
