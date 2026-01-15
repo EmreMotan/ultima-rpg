@@ -1,8 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
-// Version: 0.8.6
+// Version: 0.8.7
 
-const VERSION = '0.8.6';
+const VERSION = '0.8.7';
 console.log('Ultima RPG v' + VERSION + ' loaded');
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
@@ -601,7 +601,21 @@ function setupControls() {
   document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
   document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
   document.getElementById('btn-action').addEventListener('click', handleAction);
-  document.getElementById('btn-inventory').addEventListener('click', openInventory);
+
+  // Inventory button - add both touch and click handlers
+  const invBtn = document.getElementById('btn-inventory');
+  if (invBtn) {
+    invBtn.addEventListener('click', openInventory);
+    invBtn.addEventListener('touchstart', function(e) {
+      e.preventDefault();
+      console.log('Inventory button touch detected');
+      openInventory();
+    });
+    console.log('Inventory button handlers attached');
+  } else {
+    console.log('ERROR: btn-inventory element not found!');
+  }
+
   document.getElementById('btn-close-inventory').addEventListener('click', closeInventory);
 }
 
