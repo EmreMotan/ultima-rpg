@@ -1,8 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
-// Version: 0.8.9
+// Version: 0.8.10
 
-const VERSION = '0.8.9';
+const VERSION = '0.8.10';
 console.log('Ultima RPG v' + VERSION + ' loaded');
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
@@ -205,6 +205,9 @@ function moveEnemies() {
 
     // Don't collide with other enemies
     if (state.enemies.some(e => e.alive && e.id !== enemy.id && e.x === newX && e.y === newY)) return;
+
+    // Don't move into player's tile
+    if (newX === state.player.x && newY === state.player.y) return;
 
     enemy.x = newX;
     enemy.y = newY;
