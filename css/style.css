@@ -163,7 +163,7 @@ body {
 /* Combat Log - persistent at top */
 #combat-log {
   position: absolute;
-  top: 24px;
+  top: 56px; /* Below status bar + inventory */
   left: 8px;
   right: 8px;
   height: 64px; /* 3 lines of text */
@@ -205,6 +205,7 @@ body {
   border-radius: 8px;
   padding: 12px;
   pointer-events: auto;
+  z-index: 100;
 }
 
 #inventory-panel.hidden {
