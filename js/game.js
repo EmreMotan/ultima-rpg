@@ -1,6 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
+// Version: 0.8.0
 
+const VERSION = '0.8.0';
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
 const WORLD_HEIGHT = 32;
@@ -600,29 +602,29 @@ function setupControls() {
   document.getElementById('btn-action').addEventListener('click', handleAction);
 
   // Inventory controls
-  document.getElementById('btn-inventory').addEventListener('click', toggleInventory);
-  document.getElementById('btn-close-inventory').addEventListener('click', closeInventory);
-}
+  document.getElementById('btn-inventory').addEventListener('click', function() {
+    const panel = document.getElementById('inventory-panel');
+    const isHidden = panel.classList.contains('hidden');
+    if (isHidden) {
+      panel.classList.remove('hidden');
+      addMessage("📦 Inventory opened");
+    } else {
+      panel.classList.add('hidden');
+      addMessage("📦 Inventory closed");
+    }
+    updateInventoryUI();
+  });
 
-function toggleInventory() {
-  const panel = document.getElementById('inventory-panel');
-  const isHidden = panel.classList.contains('hidden');
-  if (isHidden) {
-    panel.classList.remove('hidden');
-    addMessage("📦 Inventory opened");
-  } else {
-    panel.classList.add('hidden');
+  document.getElementById('btn-close-inventory').addEventListener('click', function() {
+    document.getElementById('inventory-panel').classList.add('hidden');
     addMessage("📦 Inventory closed");
-  }
-  updateInventoryUI();
-}
-
-function closeInventory() {
-  document.getElementById('inventory-panel').classList.add('hidden');
+  });
 }
 
 function updateInventoryUI() {
   const grid = document.getElementById('inventory-grid');
+  if (!grid) return;
+
   const potionCount = state.player.inventory.filter(i => i === 'potion').length;
 
   // Create 12 slots
