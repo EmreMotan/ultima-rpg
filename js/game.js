@@ -1,8 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
-// Version: 0.8.5
+// Version: 0.8.6
 
-const VERSION = '0.8.5';
+const VERSION = '0.8.6';
 console.log('Ultima RPG v' + VERSION + ' loaded');
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
@@ -606,8 +606,13 @@ function setupControls() {
 }
 
 function openInventory() {
-  console.log('Opening inventory...');
-  document.getElementById('inventory-panel').classList.remove('hidden');
+  console.log('openInventory called');
+  const panel = document.getElementById('inventory-panel');
+  console.log('panel element:', panel);
+  if (panel) {
+    panel.classList.remove('hidden');
+    console.log('Panel should be visible now');
+  }
   renderInventory();
   addMessage("📦 Inventory opened");
 }
@@ -619,8 +624,13 @@ function closeInventory() {
 }
 
 function renderInventory() {
+  console.log('renderInventory called');
   const grid = document.getElementById('inventory-grid');
-  if (!grid) return;
+  console.log('grid element:', grid);
+  if (!grid) {
+    console.log('Grid not found!');
+    return;
+  }
 
   const potionCount = state.player.inventory.filter(i => i === 'potion').length;
   let html = '';
@@ -684,4 +694,9 @@ function init() {
   addMessage("You died? Respawn at castle, lose half gold.");
 }
 
-init();
+try {
+  init();
+  console.log('Game initialized successfully');
+} catch(e) {
+  console.error('Game initialization error:', e);
+}
