@@ -292,16 +292,6 @@ function draw() {
   });
 
   updateUI();
-
-  // Hide combat log if not in combat
-  if (!isInCombat() && combatMessages.length > 0) {
-    // Clear combat log after a short delay when combat ends
-    setTimeout(() => {
-      if (!isInCombat()) {
-        clearCombatLog();
-      }
-    }, 1000);
-  }
 }
 
 function updateUI() {
@@ -357,11 +347,11 @@ function addMessage(text) {
   }
 }
 
-// Combat log - visible during combat
+// Combat log - visible at top of screen
 let combatMessages = [];
 
-function combatLog(msg) {
-  combatMessages.unshift(msg);
+function combatLog(msg, className = '') {
+  combatMessages.unshift({ text: msg, class: className });
   while (combatMessages.length > 6) {
     combatMessages.pop();
   }
@@ -372,7 +362,7 @@ function updateCombatLogUI() {
   const logEl = document.getElementById('combat-log');
   if (combatMessages.length > 0) {
     logEl.classList.remove('hidden');
-    logEl.innerHTML = combatMessages.map(m => `<div>${m}</div>`).join('');
+    logEl.innerHTML = combatMessages.map(m => `<div class="${m.class}">${m.text}</div>`).join('');
   } else {
     logEl.classList.add('hidden');
   }
@@ -392,9 +382,9 @@ function isInCombat() {
 function playerAttackEnemy(enemy) {
   const playerDmg = 2 + Math.floor(Math.random() * 3); // 2-4 damage
   enemy.hp -= playerDmg;
-  const msg = `⚔️ You hit ${enemy.name} for ${playerDmg} damage!`;
-  addMessage(msg);
-  combatLog(msg);
+  const msg = `You hit ${enemy.name} for ${playerDmg} damage!`;
+  addMessage(`⚔️ ${msg}`);
+  combatLog(msg, 'player-hit');
 
   if (enemy.hp <= 0) {
     enemy.alive = false;
@@ -402,9 +392,9 @@ function playerAttackEnemy(enemy) {
     const gold = enemy.gold;
     state.player.exp += exp;
     state.player.gold += gold;
-    const winMsg = `💀 Victory! +${exp} EXP, +${gold} Gold`;
-    addMessage(winMsg);
-    combatLog(winMsg);
+    const winMsg = `Victory! +${exp} EXP, +${gold} Gold`;
+    addMessage(`💀 ${winMsg}`);
+    combatLog(winMsg, 'victory');
 
     // Level up check
     if (state.player.exp >= state.player.level * 50) {
@@ -412,9 +402,9 @@ function playerAttackEnemy(enemy) {
       state.player.maxHp += 5;
       state.player.hp = state.player.maxHp;
       state.player.exp = 0;
-      const levelMsg = `🎉 LEVEL UP! You are now level ${state.player.level}!`;
-      addMessage(levelMsg);
-      combatLog(levelMsg);
+      const levelMsg = `LEVEL UP! You are now level ${state.player.level}!`;
+      addMessage(`🎉 ${levelMsg}`);
+      combatLog(levelMsg, 'levelup');
     }
     draw();
     clearTimeout(window.deathTimeout);
@@ -426,15 +416,15 @@ function playerAttackEnemy(enemy) {
 function enemyAttackPlayer(enemy) {
   const enemyDmg = enemy.damage + Math.floor(Math.random() * 2) - 1;
   state.player.hp -= enemyDmg;
-  const msg = `🩸 ${enemy.name} hits you for ${enemyDmg} damage!`;
-  addMessage(msg);
-  combatLog(msg);
+  const msg = `${enemy.name} hits you for ${enemyDmg} damage!`;
+  addMessage(`🩸 ${msg}`);
+  combatLog(msg, 'enemy-hit');
 
   if (state.player.hp <= 0) {
     state.player.hp = 0;
-    const deathMsg = "💀 You have been defeated!";
-    addMessage(deathMsg);
-    combatLog(deathMsg);
+    const deathMsg = "You have been defeated!";
+    addMessage(`💀 ${deathMsg}`);
+    combatLog(deathMsg, 'death');
     updateUI();
     window.deathTimeout = setTimeout(() => {
       playerDefeated();
@@ -593,8 +583,8 @@ function init() {
   setupControls();
   draw();
   addMessage("Welcome, adventurer!");
-  addMessage("⚔️ Walk into enemies to attack them.");
-  addMessage("💀 You died? Respawn at castle, lose half gold.");
+  addMessage("Walk into enemies to attack them.");
+  addMessage("You died? Respawn at castle, lose half gold.");
 }
 
 init();
