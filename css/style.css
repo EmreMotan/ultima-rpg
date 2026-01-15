@@ -90,3 +90,43 @@ body {
   border-color: #5a5;
   background: rgba(40, 60, 40, 0.9);
 }
+
+/* Dialogue Modal - Lowlander style */
+#dialogue-modal {
+  position: absolute;
+  top: 20%;
+  left: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.9);
+  border: 2px solid #888;
+  border-radius: 4px;
+  padding: 12px;
+  pointer-events: auto;
+}
+
+#dialogue-modal.hidden {
+  display: none;
+}
+
+#dialogue-name {
+  color: #ffd700;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+#dialogue-text {
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  min-height: 40px;
+}
+
+#dialogue-prompt {
+  color: #888;
+  font-size: 10px;
+  text-align: right;
+  margin-top: 8px;
+  text-transform: uppercase;
+}

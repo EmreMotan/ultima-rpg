@@ -22,8 +22,49 @@ const state = {
   player: { x: 16, y: 16, hp: 10, maxHp: 10, gold: 0, level: 1 },
   camera: { x: 0, y: 0 },
   world: [],
-  messages: []
+  messages: [],
+  dialogueIndex: 0
 };
+
+// NPCs
+const NPCs = [
+  {
+    name: "Elder",
+    x: 16,
+    y: 14,
+    color: "#ff6b6b",
+    dialogues: [
+      "Welcome, traveler! I am the village elder.",
+      "Many adventures await you in these lands.",
+      "Lord British needs brave souls to help him.",
+      "May the light guide your path."
+    ]
+  },
+  {
+    name: "Guard",
+    x: 6,
+    y: 6,
+    color: "#4ecdc4",
+    dialogues: [
+      "Halt! Who goes there?",
+      "The castle is private property.",
+      "Lord British is within, but he is busy.",
+      "Stay out of trouble, traveler."
+    ]
+  },
+  {
+    name: "Trader",
+    x: 16,
+    y: 18,
+    color: "#ffd93d",
+    dialogues: [
+      "Fine goods for sale! ...Just kidding, I'm broke too.",
+      "Gold is hard to come by these days.",
+      "I've heard of treasures in the dungeons to the south.",
+      "Safe travels, friend."
+    ]
+  }
+];
 
 // Generate simple world
 function generateWorld() {
@@ -120,6 +161,36 @@ function draw() {
   ctx.stroke();
   ctx.lineWidth = 1;
 
+  // Draw NPCs
+  NPCs.forEach(npc => {
+    const npcScreenX = (npc.x - state.camera.x) * TILE_SIZE;
+    const npcScreenY = (npc.y - state.camera.y) * TILE_SIZE;
+
+    // Check if NPC is on screen
+    if (npcScreenX < -TILE_SIZE || npcScreenX > canvas.width ||
+        npcScreenY < -TILE_SIZE || npcScreenY > canvas.height) {
+      return;
+    }
+
+    // NPC body (square with rounded corners look)
+    ctx.fillStyle = npc.color;
+    ctx.fillRect(npcScreenX + 6, npcScreenY + 4, 20, 24);
+
+    // NPC border
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(npcScreenX + 6, npcScreenY + 4, 20, 24);
+
+    // Question mark if player is adjacent
+    const dist = Math.abs(state.player.x - npc.x) + Math.abs(state.player.y - npc.y);
+    if (dist === 1) {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('?', npcScreenX + TILE_SIZE / 2, npcScreenY - 2);
+    }
+  });
+
   // Update UI
   updateUI();
 }
@@ -128,6 +199,44 @@ function updateUI() {
   document.getElementById('hp').textContent = `HP: ${state.player.hp}/${state.player.maxHp}`;
   document.getElementById('gold').textContent = `Gold: ${state.player.gold}`;
   document.getElementById('level').textContent = `LVL: ${state.player.level}`;
+}
+
+let currentDialogueNPC = null;
+
+function showDialogue(npc) {
+  currentDialogueNPC = npc;
+  state.dialogueIndex = 0;
+  const modal = document.getElementById('dialogue-modal');
+  const nameEl = document.getElementById('dialogue-name');
+  const textEl = document.getElementById('dialogue-text');
+
+  nameEl.textContent = npc.name;
+  textEl.textContent = npc.dialogues[0];
+  modal.classList.remove('hidden');
+}
+
+function advanceDialogue() {
+  if (!currentDialogueNPC) return;
+
+  state.dialogueIndex++;
+  const modal = document.getElementById('dialogue-modal');
+  const textEl = document.getElementById('dialogue-text');
+
+  if (state.dialogueIndex >= currentDialogueNPC.dialogues.length) {
+    // End dialogue
+    currentDialogueNPC = null;
+    modal.classList.add('hidden');
+    addMessage("Goodbye, traveler.");
+  } else {
+    textEl.textContent = currentDialogueNPC.dialogues[state.dialogueIndex];
+  }
+}
+
+function getNearbyNPC() {
+  return NPCs.find(npc => {
+    const dist = Math.abs(state.player.x - npc.x) + Math.abs(state.player.y - npc.y);
+    return dist === 1;
+  });
 }
 
 function addMessage(text) {
@@ -163,6 +272,12 @@ function movePlayer(dx, dy) {
     return;
   }
 
+  // Close dialogue if open
+  if (currentDialogueNPC) {
+    currentDialogueNPC = null;
+    document.getElementById('dialogue-modal').classList.add('hidden');
+  }
+
   // Move
   state.player.x = newX;
   state.player.y = newY;
@@ -185,12 +300,19 @@ function movePlayer(dx, dy) {
 function setupControls() {
   // Keyboard
   document.addEventListener('keydown', (e) => {
+    // If dialogue is open, any key advances it
+    if (currentDialogueNPC) {
+      advanceDialogue();
+      e.preventDefault();
+      return;
+    }
+
     switch (e.key) {
       case 'ArrowUp': case 'w': movePlayer(0, -1); break;
       case 'ArrowDown': case 's': movePlayer(0, 1); break;
       case 'ArrowLeft': case 'a': movePlayer(-1, 0); break;
       case 'ArrowRight': case 'd': movePlayer(1, 0); break;
-      case ' ': case 'Enter': addMessage("Action!"); break;
+      case ' ': case 'Enter': handleAction(); break;
     }
   });
 
@@ -199,7 +321,21 @@ function setupControls() {
   document.getElementById('btn-down').addEventListener('click', () => movePlayer(0, 1));
   document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
   document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
-  document.getElementById('btn-action').addEventListener('click', () => addMessage("Action!"));
+  document.getElementById('btn-action').addEventListener('click', handleAction);
+}
+
+function handleAction() {
+  if (currentDialogueNPC) {
+    advanceDialogue();
+    return;
+  }
+
+  const npc = getNearbyNPC();
+  if (npc) {
+    showDialogue(npc);
+  } else {
+    addMessage("Nothing to interact with here.");
+  }
 }
 
 // Initialize
