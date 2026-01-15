@@ -2,7 +2,7 @@
 // A simple tile-based RPG engine
 // Version: 0.8.11
 
-const VERSION = '0.8.11';
+const VERSION = '0.8.12';
 console.log('Ultima RPG v' + VERSION + ' loaded');
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
