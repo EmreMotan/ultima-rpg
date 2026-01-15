@@ -272,6 +272,13 @@ function movePlayer(dx, dy) {
     return;
   }
 
+  // NPC collision check
+  const npc = NPCs.find(n => n.x === newX && n.y === newY);
+  if (npc) {
+    addMessage(`${npc.name} is in your way.`);
+    return;
+  }
+
   // Close dialogue if open
   if (currentDialogueNPC) {
     currentDialogueNPC = null;

@@ -58,12 +58,24 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
+  display: grid;
+  grid-template-areas:
+    ". up ."
+    "left action right"
+    ". down .";
+  grid-template-columns: repeat(3, 56px);
+  grid-template-rows: repeat(3, 56px);
+  gap: 4px;
   justify-content: center;
-  gap: 8px;
   padding: 12px;
   background: linear-gradient(transparent, rgba(0,0,0,0.8));
 }
+
+#btn-up { grid-area: up; }
+#btn-down { grid-area: down; }
+#btn-left { grid-area: left; }
+#btn-right { grid-area: right; }
+#btn-action { grid-area: action; align-self: center; justify-self: center; }
 
 #controls button {
   width: 56px;
