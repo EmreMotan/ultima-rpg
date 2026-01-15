@@ -33,8 +33,6 @@ const state = {
   world: [],
   messages: [],
   dialogueIndex: 0,
-  combatMode: false,
-  combatEnemy: null,
   enemies: []
 };
 
@@ -349,54 +347,18 @@ function addMessage(text) {
   }
 }
 
-// Combat system
-let combatLog = [];
-
-function startCombat(enemy) {
-  state.combatMode = true;
-  state.combatEnemy = enemy;
-  combatLog = [`A ${enemy.name} attacks!`];
-
-  showCombatModal(true);
-  updateCombatUI();
-}
-
-function showCombatModal(show) {
-  const modal = document.getElementById('combat-modal');
-  if (modal) {
-    modal.classList.toggle('hidden', !show);
-  }
-}
-
-function updateCombatUI() {
-  const combatModal = document.getElementById('combat-modal');
-  if (!combatModal || combatModal.classList.contains('hidden')) return;
-
-  const enemy = state.combatEnemy;
-  if (!enemy) return;
-
-  document.getElementById('combat-enemy-hp').textContent = `${enemy.name}: ${enemy.hp}/${enemy.maxHp} HP`;
-  document.getElementById('combat-player-hp').textContent = `You: ${state.player.hp}/${state.player.maxHp} HP`;
-  document.getElementById('combat-log').innerHTML = combatLog.join('<br>');
-}
-
-function combatAttack() {
-  if (!state.combatMode || !state.combatEnemy) return;
-
-  const enemy = state.combatEnemy;
+// Bump combat system
   const playerDmg = 2 + Math.floor(Math.random() * 3); // 2-4 damage
   enemy.hp -= playerDmg;
-  combatLog.push(`You hit for ${playerDmg} damage!`);
+  addMessage(`You hit ${enemy.name} for ${playerDmg} damage!`);
 
   if (enemy.hp <= 0) {
-    // Victory!
     enemy.alive = false;
     const exp = enemy.exp;
     const gold = enemy.gold;
-
     state.player.exp += exp;
     state.player.gold += gold;
-    combatLog.push(`Victory! +${exp} EXP, +${gold} Gold`);
+    addMessage(`Victory! +${exp} EXP, +${gold} Gold`);
 
     // Level up check
     if (state.player.exp >= state.player.level * 50) {
@@ -404,38 +366,32 @@ function combatAttack() {
       state.player.maxHp += 5;
       state.player.hp = state.player.maxHp;
       state.player.exp = 0;
-      combatLog.push(`🎉 LEVEL UP! You are now level ${state.player.level}!`);
+      addMessage(`🎉 LEVEL UP! You are now level ${state.player.level}!`);
     }
-
-    combatLog.push('Combat ended.');
-    setTimeout(endCombat, 2000);
-  } else {
-    // Enemy attacks back
-    const enemyDmg = enemy.damage + Math.floor(Math.random() * 2) - 1;
-    state.player.hp -= enemyDmg;
-    combatLog.push(`${enemy.name} hits you for ${enemyDmg} damage!`);
-
-    if (state.player.hp <= 0) {
-      combatLog.push('💀 You have been defeated!');
-      setTimeout(() => {
-        playerDefeated();
-        endCombat();
-      }, 2000);
-    }
+    draw();
+    return true; // Enemy died
   }
-
-  updateCombatUI();
+  return false; // Enemy still alive
 }
 
-function endCombat() {
-  state.combatMode = false;
-  state.combatEnemy = null;
-  showCombatModal(false);
-  draw();
+function enemyAttackPlayer(enemy) {
+  const enemyDmg = enemy.damage + Math.floor(Math.random() * 2) - 1;
+  state.player.hp -= enemyDmg;
+  addMessage(`${enemy.name} hits you for ${enemyDmg} damage!`);
+
+  if (state.player.hp <= 0) {
+    state.player.hp = 0;
+    addMessage("💀 You have been defeated!");
+    setTimeout(() => {
+      playerDefeated();
+      draw();
+    }, 1500);
+    return true; // Player died
+  }
+  return false; // Player still alive
 }
 
 function playerDefeated() {
-  // Respawn at castle with partial HP
   state.player.x = 6;
   state.player.y = 6;
   state.player.hp = Math.max(1, Math.floor(state.player.maxHp / 2));
@@ -444,23 +400,7 @@ function playerDefeated() {
   addMessage(`Rescued with ${state.player.hp} HP. Lost some gold.`);
 }
 
-function addCombatHTML() {
-  // Combat modal is in index.html, styles in CSS
-}
-
 function movePlayer(dx, dy) {
-  if (state.combatMode) {
-    // Flee from combat (costs 1 HP)
-    if (Math.random() > 0.3) {
-      state.player.hp -= 1;
-      addMessage("You fled from combat! Lost 1 HP.");
-      endCombat();
-    } else {
-      addMessage("Couldn't escape!");
-    }
-    return;
-  }
-
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
 
@@ -485,10 +425,20 @@ function movePlayer(dx, dy) {
     return;
   }
 
-  // Check for enemy encounter
+  // Bump combat - walk into enemy to attack
   const enemy = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (enemy) {
-    startCombat(enemy);
+    const enemyDied = playerAttackEnemy(enemy);
+    if (enemyDied) {
+      // Enemy died, move into their space
+      state.player.x = newX;
+      state.player.y = newY;
+    } else {
+      // Enemy survives and counter-attacks (only because you bumped them)
+      const playerDied = enemyAttackPlayer(enemy);
+      if (playerDied) return; // Don't move if died
+    }
+    draw();
     return;
   }
 
@@ -503,10 +453,14 @@ function movePlayer(dx, dy) {
   // Move enemies after player moves
   moveEnemies();
 
-  // Check for enemy encounter after movement
+  // Check for enemy encounter after movement (enemies move into you)
   const encountered = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (encountered) {
-    startCombat(encountered);
+    const enemyDied = playerAttackEnemy(encountered);
+    if (!enemyDied) {
+      enemyAttackPlayer(encountered);
+    }
+    draw();
     return;
   }
 
@@ -527,12 +481,8 @@ function movePlayer(dx, dy) {
 
 function setupControls() {
   document.addEventListener('keydown', (e) => {
-    if (currentDialogueNPC || state.combatMode) {
-      if (state.combatMode) {
-        combatAttack();
-      } else {
-        advanceDialogue();
-      }
+    if (currentDialogueNPC) {
+      advanceDialogue();
       e.preventDefault();
       return;
     }
@@ -559,11 +509,6 @@ function handleAction() {
     return;
   }
 
-  if (state.combatMode) {
-    combatAttack();
-    return;
-  }
-
   const npc = getNearbyNPC();
   if (npc) {
     showDialogue(npc);
@@ -575,7 +520,6 @@ function handleAction() {
 function init() {
   state.world = generateWorld();
   state.enemies = spawnEnemies();
-  addCombatHTML();
   setupControls();
   draw();
   addMessage("Welcome, adventurer! Watch for enemies (diamonds).");
