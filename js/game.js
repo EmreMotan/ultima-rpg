@@ -292,6 +292,16 @@ function draw() {
   });
 
   updateUI();
+
+  // Hide combat log if not in combat
+  if (!isInCombat() && combatMessages.length > 0) {
+    // Clear combat log after a short delay when combat ends
+    setTimeout(() => {
+      if (!isInCombat()) {
+        clearCombatLog();
+      }
+    }, 1000);
+  }
 }
 
 function updateUI() {
@@ -347,11 +357,44 @@ function addMessage(text) {
   }
 }
 
+// Combat log - visible during combat
+let combatMessages = [];
+
+function combatLog(msg) {
+  combatMessages.unshift(msg);
+  while (combatMessages.length > 6) {
+    combatMessages.pop();
+  }
+  updateCombatLogUI();
+}
+
+function updateCombatLogUI() {
+  const logEl = document.getElementById('combat-log');
+  if (combatMessages.length > 0) {
+    logEl.classList.remove('hidden');
+    logEl.innerHTML = combatMessages.map(m => `<div>${m}</div>`).join('');
+  } else {
+    logEl.classList.add('hidden');
+  }
+}
+
+function clearCombatLog() {
+  combatMessages = [];
+  updateCombatLogUI();
+}
+
+function isInCombat() {
+  // Check if player is adjacent to any alive enemy
+  return state.enemies.some(e => e.alive && Math.abs(state.player.x - e.x) + Math.abs(state.player.y - e.y) <= 1);
+}
+
 // Bump combat system
 function playerAttackEnemy(enemy) {
   const playerDmg = 2 + Math.floor(Math.random() * 3); // 2-4 damage
   enemy.hp -= playerDmg;
-  addMessage(`⚔️ You hit ${enemy.name} for ${playerDmg} damage!`);
+  const msg = `⚔️ You hit ${enemy.name} for ${playerDmg} damage!`;
+  addMessage(msg);
+  combatLog(msg);
 
   if (enemy.hp <= 0) {
     enemy.alive = false;
@@ -359,7 +402,9 @@ function playerAttackEnemy(enemy) {
     const gold = enemy.gold;
     state.player.exp += exp;
     state.player.gold += gold;
-    addMessage(`💀 Victory! +${exp} EXP, +${gold} Gold`);
+    const winMsg = `💀 Victory! +${exp} EXP, +${gold} Gold`;
+    addMessage(winMsg);
+    combatLog(winMsg);
 
     // Level up check
     if (state.player.exp >= state.player.level * 50) {
@@ -367,9 +412,12 @@ function playerAttackEnemy(enemy) {
       state.player.maxHp += 5;
       state.player.hp = state.player.maxHp;
       state.player.exp = 0;
-      addMessage(`🎉 LEVEL UP! You are now level ${state.player.level}!`);
+      const levelMsg = `🎉 LEVEL UP! You are now level ${state.player.level}!`;
+      addMessage(levelMsg);
+      combatLog(levelMsg);
     }
     draw();
+    clearTimeout(window.deathTimeout);
     return true; // Enemy died
   }
   return false; // Enemy still alive
@@ -378,15 +426,21 @@ function playerAttackEnemy(enemy) {
 function enemyAttackPlayer(enemy) {
   const enemyDmg = enemy.damage + Math.floor(Math.random() * 2) - 1;
   state.player.hp -= enemyDmg;
-  addMessage(`🩸 ${enemy.name} hits you for ${enemyDmg} damage!`);
+  const msg = `🩸 ${enemy.name} hits you for ${enemyDmg} damage!`;
+  addMessage(msg);
+  combatLog(msg);
 
   if (state.player.hp <= 0) {
     state.player.hp = 0;
-    addMessage("💀 You have been defeated!");
-    setTimeout(() => {
+    const deathMsg = "💀 You have been defeated!";
+    addMessage(deathMsg);
+    combatLog(deathMsg);
+    updateUI();
+    window.deathTimeout = setTimeout(() => {
       playerDefeated();
+      clearCombatLog();
       draw();
-    }, 1500);
+    }, 2000);
     return true; // Player died
   }
   return false; // Player still alive
@@ -403,12 +457,14 @@ function flashStatus(color) {
 }
 
 function playerDefeated() {
+  // Respawn at castle with partial HP
   state.player.x = 6;
   state.player.y = 6;
   state.player.hp = Math.max(1, Math.floor(state.player.maxHp / 2));
   state.player.gold = Math.floor(state.player.gold / 2);
-  addMessage("You were defeated and dragged to safety...");
-  addMessage(`Rescued with ${state.player.hp} HP. Lost some gold.`);
+  addMessage("💀 You were defeated and dragged to safety...");
+  addMessage(`🩸 Rescued with ${state.player.hp} HP. Lost half your gold.`);
+  clearCombatLog();
 }
 
 function movePlayer(dx, dy) {
@@ -536,8 +592,9 @@ function init() {
   state.enemies = spawnEnemies();
   setupControls();
   draw();
-  addMessage("Welcome, adventurer! Watch for enemies (diamonds).");
-  addMessage("Press A near them to FIGHT or walk into them!");
+  addMessage("Welcome, adventurer!");
+  addMessage("⚔️ Walk into enemies to attack them.");
+  addMessage("💀 You died? Respawn at castle, lose half gold.");
 }
 
 init();

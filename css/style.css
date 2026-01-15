@@ -142,3 +142,28 @@ body {
   margin-top: 8px;
   text-transform: uppercase;
 }
+
+/* Combat Log - always visible during combat */
+#combat-log {
+  position: absolute;
+  top: 44px;
+  left: 8px;
+  right: 8px;
+  max-height: 80px;
+  overflow-y: auto;
+  font-size: 11px;
+  color: #ff6666;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+}
+
+#combat-log.hidden {
+  display: none;
+}
+
+#combat-log div {
+  margin-bottom: 2px;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+}
