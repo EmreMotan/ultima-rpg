@@ -152,6 +152,12 @@ body {
   text-transform: uppercase;
 }
 
+#inventory-hint {
+  font-size: 10px;
+  color: #888;
+  text-align: center;
+}
+
 /* Combat Log - persistent at top */
 #combat-log {
   position: absolute;

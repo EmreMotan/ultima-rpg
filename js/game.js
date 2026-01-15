@@ -1,8 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
-// Version: 0.8.10
+// Version: 0.8.11
 
-const VERSION = '0.8.10';
+const VERSION = '0.8.11';
 console.log('Ultima RPG v' + VERSION + ' loaded');
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
@@ -599,10 +599,39 @@ function setupControls() {
     }
   });
 
-  document.getElementById('btn-up').addEventListener('click', () => movePlayer(0, -1));
-  document.getElementById('btn-down').addEventListener('click', () => movePlayer(0, 1));
-  document.getElementById('btn-left').addEventListener('click', () => movePlayer(-1, 0));
-  document.getElementById('btn-right').addEventListener('click', () => movePlayer(1, 0));
+  // Mobile buttons - during dialogue, they advance instead of move
+  document.getElementById('btn-up').addEventListener('click', function() {
+    if (currentDialogueNPC) {
+      advanceDialogue();
+    } else {
+      movePlayer(0, -1);
+    }
+  });
+
+  document.getElementById('btn-down').addEventListener('click', function() {
+    if (currentDialogueNPC) {
+      advanceDialogue();
+    } else {
+      movePlayer(0, 1);
+    }
+  });
+
+  document.getElementById('btn-left').addEventListener('click', function() {
+    if (currentDialogueNPC) {
+      advanceDialogue();
+    } else {
+      movePlayer(-1, 0);
+    }
+  });
+
+  document.getElementById('btn-right').addEventListener('click', function() {
+    if (currentDialogueNPC) {
+      advanceDialogue();
+    } else {
+      movePlayer(1, 0);
+    }
+  });
+
   document.getElementById('btn-action').addEventListener('click', handleAction);
 
   // Inventory button - add both touch and click handlers
