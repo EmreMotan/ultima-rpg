@@ -331,6 +331,80 @@ function updateUI() {
 
 let currentDialogueNPC = null;
 
+// Easter egg: Zhe's greeting
+const ZHE_SEQUENCE = ['ArrowLeft', 'ArrowLeft', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ArrowUp', 'ArrowDown', 'a'];
+let keyBuffer = [];
+
+function checkZheEasterEgg(key) {
+  keyBuffer.push(key);
+  
+  // Keep buffer at most the sequence length
+  if (keyBuffer.length > ZHE_SEQUENCE.length) {
+    keyBuffer.shift();
+  }
+  
+  // Check if buffer matches sequence
+  const match = keyBuffer.join(',') === ZHE_SEQUENCE.join(',');
+  
+  if (match) {
+    showZheMessage();
+    keyBuffer = []; // Reset after triggering
+  }
+}
+
+function showZheMessage() {
+  // Create overlay if it doesn't exist
+  let overlay = document.getElementById('zhe-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'zhe-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      pointer-events: none;
+    `;
+    const msg = document.createElement('div');
+    msg.id = 'zhe-message';
+    msg.textContent = "WHAT'S UP, ZHE?!";
+    msg.style.cssText = `
+      font-family: 'Arial Black', Arial, sans-serif;
+      font-size: 48px;
+      color: #ff00ff;
+      text-shadow: 4px 4px 0px #00ffff;
+      text-align: center;
+      animation: pulse 0.5s infinite alternate;
+    `;
+    overlay.appendChild(msg);
+    
+    // Add animation style
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        from { transform: scale(1); }
+        to { transform: scale(1.1); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(overlay);
+  }
+  
+  overlay.style.display = 'flex';
+  
+  // Hide after 3 seconds
+  setTimeout(() => {
+    overlay.style.display = 'none';
+  }, 3000);
+}
+
 function showDialogue(npc) {
   currentDialogueNPC = npc;
   state.dialogueIndex = 0;
@@ -584,6 +658,11 @@ function movePlayer(dx, dy) {
 
 function setupControls() {
   document.addEventListener('keydown', (e) => {
+    // Check for Zhe easter egg (only during gameplay, not dialogue)
+    if (!currentDialogueNPC) {
+      checkZheEasterEgg(e.key);
+    }
+    
     if (currentDialogueNPC) {
       advanceDialogue();
       e.preventDefault();
@@ -604,6 +683,7 @@ function setupControls() {
     if (currentDialogueNPC) {
       advanceDialogue();
     } else {
+      checkZheEasterEgg('ArrowUp');
       movePlayer(0, -1);
     }
   });
@@ -612,6 +692,7 @@ function setupControls() {
     if (currentDialogueNPC) {
       advanceDialogue();
     } else {
+      checkZheEasterEgg('ArrowDown');
       movePlayer(0, 1);
     }
   });
@@ -620,6 +701,7 @@ function setupControls() {
     if (currentDialogueNPC) {
       advanceDialogue();
     } else {
+      checkZheEasterEgg('ArrowLeft');
       movePlayer(-1, 0);
     }
   });
@@ -628,7 +710,17 @@ function setupControls() {
     if (currentDialogueNPC) {
       advanceDialogue();
     } else {
+      checkZheEasterEgg('ArrowRight');
       movePlayer(1, 0);
+    }
+  });
+
+  document.getElementById('btn-action').addEventListener('click', function() {
+    if (currentDialogueNPC) {
+      advanceDialogue();
+    } else {
+      checkZheEasterEgg('a');
+      handleAction();
     }
   });
 
