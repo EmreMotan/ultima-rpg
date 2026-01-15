@@ -1,8 +1,8 @@
 // Ultima RPG - With Combat System
 // A simple tile-based RPG engine
-// Version: 0.8.8
+// Version: 0.8.9
 
-const VERSION = '0.8.8';
+const VERSION = '0.8.9';
 console.log('Ultima RPG v' + VERSION + ' loaded');
 const TILE_SIZE = 32;
 const WORLD_WIDTH = 32;
