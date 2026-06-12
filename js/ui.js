@@ -55,16 +55,42 @@ export function flashStatus(color) {
   }
 }
 
-// --- Dialogue panel ---
+// --- Dialogue panel (keyword system) ---
 
-export function showDialoguePanel(npc) {
-  document.getElementById('dialogue-name').textContent = npc.name;
-  document.getElementById('dialogue-text').textContent = npc.dialogues[0];
-  document.getElementById('dialogue-modal').classList.remove('hidden');
-}
-
-export function setDialogueText(text) {
+// dialogue: { npc, available: [keyword, ...] }
+// handlers: { onKeyword(kw), onShopAction(action), onGoodbye() }
+// shopActions: [{ label, action, disabled }] — rebuilt by caller each render
+export function renderDialogue(dialogue, text, shopActions, handlers) {
+  document.getElementById('dialogue-name').textContent = dialogue.npc.name;
   document.getElementById('dialogue-text').textContent = text;
+
+  const row = document.getElementById('dialogue-keywords');
+  row.innerHTML = '';
+
+  dialogue.available.forEach(kw => {
+    const btn = document.createElement('button');
+    btn.className = 'keyword-btn';
+    btn.textContent = kw;
+    btn.addEventListener('click', () => handlers.onKeyword(kw));
+    row.appendChild(btn);
+  });
+
+  shopActions.forEach(({ label, action, disabled }) => {
+    const btn = document.createElement('button');
+    btn.className = 'keyword-btn shop-btn';
+    btn.textContent = label;
+    btn.disabled = !!disabled;
+    btn.addEventListener('click', () => handlers.onShopAction(action));
+    row.appendChild(btn);
+  });
+
+  const bye = document.createElement('button');
+  bye.className = 'keyword-btn goodbye-btn';
+  bye.textContent = 'Goodbye';
+  bye.addEventListener('click', () => handlers.onGoodbye());
+  row.appendChild(bye);
+
+  document.getElementById('dialogue-modal').classList.remove('hidden');
 }
 
 export function hideDialoguePanel() {

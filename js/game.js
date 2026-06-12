@@ -7,7 +7,7 @@ import { createPlayer, usePotion } from './player.js';
 import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
 import * as ui from './ui.js';
 
-const VERSION = '0.9.1';
+const VERSION = '0.10.0';
 console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
@@ -16,8 +16,7 @@ const state = {
   camera: { x: 0, y: 0 },
   maps: createMaps(),
   currentMapId: 'overworld',
-  returnPos: null, // overworld tile to return to when leaving a town/dungeon
-  dialogueIndex: 0
+  returnPos: null // overworld tile to return to when leaving a town/dungeon
 };
 
 function currentMap() {
@@ -164,27 +163,84 @@ function draw() {
   ui.updateUI(state);
 }
 
-// --- Dialogue ---
+// --- Dialogue (keyword system) ---
 
-let currentDialogueNPC = null;
+let currentDialogue = null; // { npc, available: [keyword, ...] }
 
-function showDialogue(npc) {
-  currentDialogueNPC = npc;
-  state.dialogueIndex = 0;
-  ui.showDialoguePanel(npc);
+function getShopActions(npc) {
+  if (!npc.shop) return [];
+
+  if (npc.shop.type === 'store') {
+    return npc.shop.items.map(item => ({
+      label: `Buy ${item.name} — ${item.price}g`,
+      action: { kind: 'buy', item },
+      disabled: state.player.gold < item.price || state.player.inventory.length >= 12
+    }));
+  }
+
+  if (npc.shop.type === 'healer') {
+    const missing = state.player.maxHp - state.player.hp;
+    const cost = missing * 2;
+    return [{
+      label: missing === 0 ? 'Heal — not needed' : `Heal full HP — ${cost}g`,
+      action: { kind: 'heal' },
+      disabled: missing === 0 || state.player.gold < cost
+    }];
+  }
+
+  return [];
 }
 
-function advanceDialogue() {
-  if (!currentDialogueNPC) return;
-
-  state.dialogueIndex++;
-  if (state.dialogueIndex >= currentDialogueNPC.dialogues.length) {
-    currentDialogueNPC = null;
-    ui.hideDialoguePanel();
-    ui.addMessage('Goodbye, traveler.');
-  } else {
-    ui.setDialogueText(currentDialogueNPC.dialogues[state.dialogueIndex]);
+const dialogueHandlers = {
+  onKeyword(kw) {
+    const entry = currentDialogue.npc.keywords[kw];
+    (entry.unlocks || []).forEach(unlocked => {
+      if (!currentDialogue.available.includes(unlocked)) {
+        currentDialogue.available.push(unlocked);
+      }
+    });
+    renderCurrentDialogue(entry.text);
+  },
+  onShopAction(action) {
+    if (action.kind === 'buy') {
+      const { item } = action;
+      if (state.player.gold < item.price || state.player.inventory.length >= 12) return;
+      state.player.gold -= item.price;
+      state.player.inventory.push(item.id);
+      ui.addMessage(`🧪 Bought ${item.name} for ${item.price}g.`);
+      ui.updateUI(state);
+      renderCurrentDialogue(`${item.name}. Good choice. Anything else?`);
+    } else if (action.kind === 'heal') {
+      const missing = state.player.maxHp - state.player.hp;
+      const cost = missing * 2;
+      if (missing === 0 || state.player.gold < cost) return;
+      state.player.gold -= cost;
+      state.player.hp = state.player.maxHp;
+      ui.addMessage(`💚 Healed to full for ${cost}g.`);
+      ui.updateUI(state);
+      renderCurrentDialogue('There. Good as new — or close enough, these days.');
+    }
+  },
+  onGoodbye() {
+    closeDialogue();
   }
+};
+
+function renderCurrentDialogue(text) {
+  ui.renderDialogue(currentDialogue, text, getShopActions(currentDialogue.npc), dialogueHandlers);
+}
+
+function showDialogue(npc) {
+  currentDialogue = {
+    npc,
+    available: Object.keys(npc.keywords).filter(kw => !npc.keywords[kw].locked)
+  };
+  renderCurrentDialogue(npc.greeting);
+}
+
+function closeDialogue() {
+  currentDialogue = null;
+  ui.hideDialoguePanel();
 }
 
 function getNearbyNPC() {
@@ -244,10 +300,14 @@ function movePlayer(dx, dy) {
   if (itemIndex !== -1) {
     const item = map.items[itemIndex];
     if (item.type.id === 'potion') {
-      state.player.inventory.push('potion');
-      map.items.splice(itemIndex, 1);
-      ui.addMessage(`🧪 Potion collected! (${state.player.inventory.length} in bag)`);
-      ui.renderInventory(state, handleUsePotion);
+      if (state.player.inventory.length >= 12) {
+        ui.addMessage('🎒 Your bag is full.');
+      } else {
+        state.player.inventory.push('potion');
+        map.items.splice(itemIndex, 1);
+        ui.addMessage(`🧪 Potion collected! (${state.player.inventory.length} in bag)`);
+        ui.renderInventory(state, handleUsePotion);
+      }
     }
   }
 
@@ -259,9 +319,8 @@ function movePlayer(dx, dy) {
     return;
   }
 
-  if (currentDialogueNPC) {
-    currentDialogueNPC = null;
-    ui.hideDialoguePanel();
+  if (currentDialogue) {
+    closeDialogue();
   }
 
   // Map transitions
@@ -315,8 +374,8 @@ function handleUsePotion() {
 // --- Action button ---
 
 function handleAction() {
-  if (currentDialogueNPC) {
-    advanceDialogue();
+  if (currentDialogue) {
+    closeDialogue();
     return;
   }
 
@@ -365,12 +424,14 @@ function setupZoomPrevention() {
 
 function setupControls() {
   document.addEventListener('keydown', (e) => {
-    if (!currentDialogueNPC) {
+    if (!currentDialogue) {
       checkZheEasterEgg(e.key);
     }
 
-    if (currentDialogueNPC) {
-      advanceDialogue();
+    if (currentDialogue) {
+      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+        closeDialogue();
+      }
       e.preventDefault();
       return;
     }
@@ -393,8 +454,8 @@ function setupControls() {
   ];
   dpad.forEach(([id, key, dx, dy]) => {
     document.getElementById(id).addEventListener('click', () => {
-      if (currentDialogueNPC) {
-        advanceDialogue();
+      if (currentDialogue) {
+        closeDialogue();
       } else {
         checkZheEasterEgg(key);
         movePlayer(dx, dy);
@@ -403,8 +464,8 @@ function setupControls() {
   });
 
   document.getElementById('btn-action').addEventListener('click', () => {
-    if (currentDialogueNPC) {
-      advanceDialogue();
+    if (currentDialogue) {
+      closeDialogue();
     } else {
       checkZheEasterEgg('a');
       handleAction();
@@ -433,6 +494,8 @@ function init() {
   ui.addMessage('Walk into enemies to attack them.');
   ui.addMessage('The town of Cinderwick lies at the center of the valley.');
 }
+
+window.__emberfallDebug = { state, draw };
 
 try {
   init();
