@@ -4,12 +4,17 @@
   box-sizing: border-box;
 }
 
-body {
+html, body {
   background: #000;
   color: #fff;
   font-family: 'Courier New', monospace;
   overflow: hidden;
   touch-action: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 #game-container {

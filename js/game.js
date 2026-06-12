@@ -7,7 +7,7 @@ import { createPlayer, usePotion } from './player.js';
 import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
 import * as ui from './ui.js';
 
-const VERSION = '0.9.0';
+const VERSION = '0.9.1';
 console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
@@ -346,6 +346,23 @@ function checkZheEasterEgg(key) {
 
 // --- Controls ---
 
+function setupZoomPrevention() {
+  // iOS Safari ignores user-scalable=no; block pinch and double-tap zoom directly
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
+
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    // Buttons handle rapid taps via touch-action: manipulation; don't eat their clicks
+    if (e.target.closest('button, .inventory-slot')) return;
+    const now = Date.now();
+    if (now - lastTouchEnd < 300) {
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
+}
+
 function setupControls() {
   document.addEventListener('keydown', (e) => {
     if (!currentDialogueNPC) {
@@ -409,6 +426,7 @@ function setupControls() {
 function init() {
   const overworld = state.maps.overworld;
   overworld.enemies = spawnEnemies(overworld, NPCS_BY_MAP.overworld, state.player);
+  setupZoomPrevention();
   setupControls();
   draw();
   ui.addMessage('Welcome to Emberfall, adventurer!');
