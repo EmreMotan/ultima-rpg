@@ -48,6 +48,15 @@ body {
   font-size: 10px;
 }
 
+#zone-name {
+  background: rgba(0, 0, 0, 0.5);
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #c9a227;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 #message-log {
   position: absolute;
   bottom: 120px;

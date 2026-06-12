@@ -1,223 +1,66 @@
-// Ultima RPG - With Combat System
-// A simple tile-based RPG engine
-// Version: 0.8.11
+// game.js — main loop, input, draw, map transitions
+// Emberfall RPG (see DESIGN.md)
 
-const VERSION = '0.8.12';
-console.log('Ultima RPG v' + VERSION + ' loaded');
-const TILE_SIZE = 32;
-const WORLD_WIDTH = 32;
-const WORLD_HEIGHT = 32;
+import { TILE_SIZE, TILES, createMaps, isSolid } from './world.js';
+import { NPCS_BY_MAP } from './npcs.js';
+import { createPlayer, usePotion } from './player.js';
+import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
+import * as ui from './ui.js';
 
-// Grey box tile colors
-const TILES = {
-  GRASS:  { id: 0, color: '#2d5a27', name: 'grass' },
-  WATER:  { id: 1, color: '#3a7bd5', name: 'water' },
-  WALL:   { id: 2, color: '#4a4a4a', name: 'wall' },
-  FLOOR:  { id: 3, color: '#5a5a5a', name: 'floor' },
-  TREE:   { id: 4, color: '#1a3a17', name: 'tree' },
-  PATH:   { id: 5, color: '#8b7355', name: 'path' },
-  CASTLE: { id: 6, color: '#6a4a8a', name: 'castle' },
-  VILLAGE:{ id: 7, color: '#8a6a4a', name: 'village' },
-  DUNGEON:{ id: 8, color: '#2a2a2a', name: 'dungeon' }
-};
-
-// Enemy types
-const ENEMY_TYPES = {
-  SLIME: { name: "Slime", hp: 3, damage: 1, color: "#00ff00", exp: 5, gold: 2 },
-  SKELETON: { name: "Skeleton", hp: 5, damage: 2, color: "#cccccc", exp: 10, gold: 5 },
-  ORC: { name: "Orc", hp: 8, damage: 3, color: "#8b4513", exp: 20, gold: 10 },
-  MAGE: { name: "Dark Mage", hp: 6, damage: 4, color: "#9932cc", exp: 25, gold: 15 }
-};
+const VERSION = '0.9.0';
+console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
 const state = {
-  player: { x: 16, y: 16, hp: 20, maxHp: 20, gold: 0, level: 1, exp: 0, inventory: [] },
+  player: createPlayer(),
   camera: { x: 0, y: 0 },
-  world: [],
-  messages: [],
-  dialogueIndex: 0,
-  enemies: [],
-  items: [] // Potions on the ground
+  maps: createMaps(),
+  currentMapId: 'overworld',
+  returnPos: null, // overworld tile to return to when leaving a town/dungeon
+  dialogueIndex: 0
 };
 
-// Item types
-const ITEMS = {
-  POTION: { id: 'potion', name: 'Potion', color: '#00ff00', heal: 5 }
-};
-
-// NPCs
-const NPCs = [
-  {
-    name: "Elder",
-    x: 16,
-    y: 14,
-    color: "#ff6b6b",
-    dialogues: [
-      "Welcome, traveler! I am the village elder.",
-      "Many adventures await you in these lands.",
-      "Lord British needs brave souls to help him.",
-      "May the light guide your path.",
-      "Beware the dungeons to the south!"
-    ]
-  },
-  {
-    name: "Guard",
-    x: 6,
-    y: 6,
-    color: "#4ecdc4",
-    dialogues: [
-      "Halt! Who goes there?",
-      "The castle is private property.",
-      "Lord British is within, but he is busy.",
-      "Stay out of trouble, traveler."
-    ]
-  },
-  {
-    name: "Trader",
-    x: 16,
-    y: 18,
-    color: "#ffd93d",
-    dialogues: [
-      "Fine goods for sale! ...Just kidding, I'm broke too.",
-      "Gold is hard to come by these days.",
-      "I've heard of treasures in the dungeons to the south.",
-      "Safe travels, friend."
-    ]
-  }
-];
-
-// Generate simple world
-function generateWorld() {
-  const world = [];
-  for (let y = 0; y < WORLD_HEIGHT; y++) {
-    const row = [];
-    for (let x = 0; x < WORLD_WIDTH; x++) {
-      let tile = TILES.GRASS;
-
-      // Water around edges
-      if (x < 2 || x >= WORLD_WIDTH - 2 || y < 2 || y >= WORLD_HEIGHT - 2) {
-        tile = TILES.WATER;
-      }
-      // Castle in top-left
-      else if (x >= 4 && x <= 8 && y >= 4 && y <= 8) {
-        tile = TILES.CASTLE;
-      }
-      // Village in center
-      else if (x >= 14 && x <= 18 && y >= 14 && y <= 18) {
-        tile = TILES.VILLAGE;
-      }
-      // Dungeon to the south
-      else if (x >= 10 && x <= 22 && y >= 22 && y <= 28) {
-        tile = TILES.DUNGEON;
-      }
-      // Random trees
-      else if (Math.random() < 0.05) {
-        tile = TILES.TREE;
-      }
-      // Paths connecting places
-      else if ((x === 6 && y >= 8 && y <= 14) || (y === 16 && x >= 8 && x <= 14)) {
-        tile = TILES.PATH;
-      }
-      // Dungeon entrance path
-      else if (x >= 14 && x <= 18 && y >= 18 && y < 22) {
-        tile = TILES.PATH;
-      }
-
-      row.push(tile);
-    }
-    world.push(row);
-  }
-  return world;
+function currentMap() {
+  return state.maps[state.currentMapId];
 }
 
-// Spawn enemies
-function spawnEnemies() {
-  const enemies = [];
-  const types = Object.keys(ENEMY_TYPES);
+function currentNPCs() {
+  return NPCS_BY_MAP[state.currentMapId] || [];
+}
 
-  // Spawn 5-8 enemies in the world
-  const count = 5 + Math.floor(Math.random() * 4);
+// --- Map transitions ---
 
-  for (let i = 0; i < count; i++) {
-    let x, y, valid;
-    do {
-      x = 4 + Math.floor(Math.random() * (WORLD_WIDTH - 8));
-      y = 4 + Math.floor(Math.random() * (WORLD_HEIGHT - 8));
-      valid = true;
+function enterMap(mapId, entryFrom) {
+  state.returnPos = entryFrom;
+  state.currentMapId = mapId;
+  const map = currentMap();
+  state.player.x = map.spawn.x;
+  state.player.y = map.spawn.y;
+  ui.addMessage(`You enter ${map.name}.`);
+  draw();
+}
 
-      // Don't spawn on special tiles
-      const tile = state.world[y][x];
-      if (tile === TILES.WATER || tile === TILES.CASTLE || tile === TILES.VILLAGE) {
-        valid = false;
-      }
-
-      // Don't spawn on NPCs
-      if (NPCs.some(n => n.x === x && n.y === y)) valid = false;
-
-      // Don't spawn too close to player
-      if (Math.abs(x - state.player.x) < 5 && Math.abs(y - state.player.y) < 5) {
-        valid = false;
-      }
-    } while (!valid);
-
-    const typeKey = types[Math.floor(Math.random() * types.length)];
-    const type = ENEMY_TYPES[typeKey];
-
-    enemies.push({
-      id: i,
-      x: x,
-      y: y,
-      hp: type.hp,
-      maxHp: type.hp,
-      damage: type.damage,
-      name: type.name,
-      color: type.color,
-      exp: type.exp,
-      gold: type.gold,
-      alive: true
-    });
+function exitToOverworld() {
+  state.currentMapId = 'overworld';
+  if (state.returnPos) {
+    state.player.x = state.returnPos.x;
+    state.player.y = state.returnPos.y;
+    state.returnPos = null;
+  } else {
+    const map = currentMap();
+    state.player.x = map.spawn.x;
+    state.player.y = map.spawn.y;
   }
-  return enemies;
+  ui.addMessage('You return to the overworld.');
+  draw();
 }
 
-// Move enemies
-function moveEnemies() {
-  if (state.combatMode) return;
+// --- Drawing ---
 
-  state.enemies.forEach(enemy => {
-    if (!enemy.alive) return;
-
-    // 30% chance to move each turn
-    if (Math.random() > 0.3) return;
-
-    const directions = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-    const dir = directions[Math.floor(Math.random() * directions.length)];
-    const newX = enemy.x + dir[0];
-    const newY = enemy.y + dir[1];
-
-    // Check bounds
-    if (newX < 0 || newX >= WORLD_WIDTH || newY < 0 || newY >= WORLD_HEIGHT) return;
-
-    // Check terrain
-    const tile = state.world[newY][newX];
-    if (tile === TILES.WATER || tile === TILES.WALL || tile === TILES.TREE ||
-        tile === TILES.CASTLE || tile === TILES.VILLAGE) return;
-
-    // Don't collide with other enemies
-    if (state.enemies.some(e => e.alive && e.id !== enemy.id && e.x === newX && e.y === newY)) return;
-
-    // Don't move into player's tile
-    if (newX === state.player.x && newY === state.player.y) return;
-
-    enemy.x = newX;
-    enemy.y = newY;
-  });
-}
-
-// Draw the game
 function draw() {
   const canvas = document.getElementById('game-canvas');
   const ctx = canvas.getContext('2d');
+  const map = currentMap();
 
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
@@ -228,14 +71,14 @@ function draw() {
   state.camera.x = state.player.x - Math.floor(tilesX / 2);
   state.camera.y = state.player.y - Math.floor(tilesY / 2);
 
-  // Draw tiles
+  // Tiles
   for (let dy = 0; dy < tilesY + 1; dy++) {
     for (let dx = 0; dx < tilesX + 1; dx++) {
       const worldX = state.camera.x + dx;
       const worldY = state.camera.y + dy;
 
-      if (worldX >= 0 && worldX < WORLD_WIDTH && worldY >= 0 && worldY < WORLD_HEIGHT) {
-        const tile = state.world[worldY][worldX];
+      if (worldX >= 0 && worldX < map.width && worldY >= 0 && worldY < map.height) {
+        const tile = map.tiles[worldY][worldX];
         const px = dx * TILE_SIZE;
         const py = dy * TILE_SIZE;
 
@@ -247,7 +90,7 @@ function draw() {
     }
   }
 
-  // Draw player
+  // Player
   const playerScreenX = (state.player.x - state.camera.x) * TILE_SIZE;
   const playerScreenY = (state.player.y - state.camera.y) * TILE_SIZE;
 
@@ -260,8 +103,8 @@ function draw() {
   ctx.stroke();
   ctx.lineWidth = 1;
 
-  // Draw NPCs
-  NPCs.forEach(npc => {
+  // NPCs
+  currentNPCs().forEach(npc => {
     const npcScreenX = (npc.x - state.camera.x) * TILE_SIZE;
     const npcScreenY = (npc.y - state.camera.y) * TILE_SIZE;
     if (npcScreenX < -TILE_SIZE || npcScreenX > canvas.width ||
@@ -281,15 +124,14 @@ function draw() {
     }
   });
 
-  // Draw enemies
-  state.enemies.forEach(enemy => {
+  // Enemies
+  currentMap().enemies.forEach(enemy => {
     if (!enemy.alive) return;
     const enemyScreenX = (enemy.x - state.camera.x) * TILE_SIZE;
     const enemyScreenY = (enemy.y - state.camera.y) * TILE_SIZE;
     if (enemyScreenX < -TILE_SIZE || enemyScreenX > canvas.width ||
         enemyScreenY < -TILE_SIZE || enemyScreenY > canvas.height) return;
 
-    // Enemy body (diamond shape)
     ctx.fillStyle = enemy.color;
     ctx.beginPath();
     ctx.moveTo(enemyScreenX + TILE_SIZE / 2, enemyScreenY + 4);
@@ -303,14 +145,13 @@ function draw() {
     ctx.stroke();
   });
 
-  // Draw items on the ground
-  state.items.forEach(item => {
+  // Items on the ground
+  currentMap().items.forEach(item => {
     const itemScreenX = (item.x - state.camera.x) * TILE_SIZE;
     const itemScreenY = (item.y - state.camera.y) * TILE_SIZE;
     if (itemScreenX < -TILE_SIZE || itemScreenX > canvas.width ||
         itemScreenY < -TILE_SIZE || itemScreenY > canvas.height) return;
 
-    // Potion bottle shape
     ctx.fillStyle = item.type.color;
     ctx.fillRect(itemScreenX + 10, itemScreenY + 8, 12, 16);
     ctx.fillRect(itemScreenX + 12, itemScreenY + 4, 8, 4);
@@ -320,349 +161,197 @@ function draw() {
     ctx.strokeRect(itemScreenX + 12, itemScreenY + 4, 8, 4);
   });
 
-  updateUI();
+  ui.updateUI(state);
 }
 
-function updateUI() {
-  document.getElementById('hp').textContent = `HP: ${state.player.hp}/${state.player.maxHp}`;
-  document.getElementById('gold').textContent = `Gold: ${state.player.gold}`;
-  document.getElementById('level').textContent = `LVL: ${state.player.level}`;
-}
+// --- Dialogue ---
 
 let currentDialogueNPC = null;
-
-// Easter egg: Zhe's greeting
-const ZHE_SEQUENCE = ['ArrowLeft', 'ArrowLeft', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ArrowUp', 'ArrowDown', 'a'];
-let keyBuffer = [];
-
-function checkZheEasterEgg(key) {
-  keyBuffer.push(key);
-  
-  // Keep buffer at most the sequence length
-  if (keyBuffer.length > ZHE_SEQUENCE.length) {
-    keyBuffer.shift();
-  }
-  
-  // Check if buffer matches sequence
-  const match = keyBuffer.join(',') === ZHE_SEQUENCE.join(',');
-  
-  if (match) {
-    showZheMessage();
-    keyBuffer = []; // Reset after triggering
-  }
-}
-
-function showZheMessage() {
-  // Create overlay if it doesn't exist
-  let overlay = document.getElementById('zhe-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'zhe-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0,0,0,0.7);
-      z-index: 1000;
-      pointer-events: none;
-    `;
-    const msg = document.createElement('div');
-    msg.id = 'zhe-message';
-    msg.textContent = "WHAT'S UP, ZHE?!";
-    msg.style.cssText = `
-      font-family: 'Arial Black', Arial, sans-serif;
-      font-size: 48px;
-      color: #ff00ff;
-      text-shadow: 4px 4px 0px #00ffff;
-      text-align: center;
-      animation: pulse 0.5s infinite alternate;
-    `;
-    overlay.appendChild(msg);
-    
-    // Add animation style
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes pulse {
-        from { transform: scale(1); }
-        to { transform: scale(1.1); }
-      }
-    `;
-    document.head.appendChild(style);
-    
-    document.body.appendChild(overlay);
-  }
-  
-  overlay.style.display = 'flex';
-  
-  // Hide after 3 seconds
-  setTimeout(() => {
-    overlay.style.display = 'none';
-  }, 3000);
-}
 
 function showDialogue(npc) {
   currentDialogueNPC = npc;
   state.dialogueIndex = 0;
-  const modal = document.getElementById('dialogue-modal');
-  const nameEl = document.getElementById('dialogue-name');
-  const textEl = document.getElementById('dialogue-text');
-
-  nameEl.textContent = npc.name;
-  textEl.textContent = npc.dialogues[0];
-  modal.classList.remove('hidden');
+  ui.showDialoguePanel(npc);
 }
 
 function advanceDialogue() {
   if (!currentDialogueNPC) return;
 
   state.dialogueIndex++;
-  const modal = document.getElementById('dialogue-modal');
-  const textEl = document.getElementById('dialogue-text');
-
   if (state.dialogueIndex >= currentDialogueNPC.dialogues.length) {
     currentDialogueNPC = null;
-    modal.classList.add('hidden');
-    addMessage("Goodbye, traveler.");
+    ui.hideDialoguePanel();
+    ui.addMessage('Goodbye, traveler.');
   } else {
-    textEl.textContent = currentDialogueNPC.dialogues[state.dialogueIndex];
+    ui.setDialogueText(currentDialogueNPC.dialogues[state.dialogueIndex]);
   }
 }
 
 function getNearbyNPC() {
-  return NPCs.find(npc => {
+  return currentNPCs().find(npc => {
     const dist = Math.abs(state.player.x - npc.x) + Math.abs(state.player.y - npc.y);
     return dist === 1;
   });
 }
 
-function addMessage(text) {
-  const log = document.getElementById('message-log');
-  const msg = document.createElement('div');
-  msg.textContent = text;
-  log.insertBefore(msg, log.firstChild);
-  while (log.children.length > 5) {
-    log.removeChild(log.lastChild);
-  }
-}
-
-// Combat log - visible at top of screen
-let combatMessages = [];
-
-function combatLog(msg, className = '') {
-  combatMessages.unshift({ text: msg, class: className });
-  while (combatMessages.length > 6) {
-    combatMessages.pop();
-  }
-  updateCombatLogUI();
-}
-
-function updateCombatLogUI() {
-  const logEl = document.getElementById('combat-log');
-  if (combatMessages.length > 0) {
-    logEl.classList.remove('hidden');
-    logEl.innerHTML = combatMessages.map(m => `<div class="${m.class}">${m.text}</div>`).join('');
-  } else {
-    logEl.classList.add('hidden');
-  }
-}
-
-function clearCombatLog() {
-  combatMessages = [];
-  updateCombatLogUI();
-}
-
-function isInCombat() {
-  // Check if player is adjacent to any alive enemy
-  return state.enemies.some(e => e.alive && Math.abs(state.player.x - e.x) + Math.abs(state.player.y - e.y) <= 1);
-}
-
-// Bump combat system
-function playerAttackEnemy(enemy) {
-  const playerDmg = 2 + Math.floor(Math.random() * 3); // 2-4 damage
-  enemy.hp -= playerDmg;
-  const msg = `You hit ${enemy.name} for ${playerDmg} damage!`;
-  addMessage(`⚔️ ${msg}`);
-  combatLog(msg, 'player-hit');
-
-  if (enemy.hp <= 0) {
-    enemy.alive = false;
-    const exp = enemy.exp;
-    const gold = enemy.gold;
-    state.player.exp += exp;
-    state.player.gold += gold;
-    const winMsg = `Victory! +${exp} EXP, +${gold} Gold`;
-    addMessage(`💀 ${winMsg}`);
-    combatLog(winMsg, 'victory');
-
-    // Chance to drop potion (50%)
-    if (Math.random() < 0.5) {
-      state.items.push({
-        x: enemy.x,
-        y: enemy.y,
-        type: ITEMS.POTION
-      });
-      addMessage(`🧪 A potion was dropped!`);
-    }
-
-    // Level up check
-    if (state.player.exp >= state.player.level * 50) {
-      state.player.level++;
-      state.player.maxHp += 5;
-      state.player.hp = state.player.maxHp;
-      state.player.exp = 0;
-      const levelMsg = `LEVEL UP! You are now level ${state.player.level}!`;
-      addMessage(`🎉 ${levelMsg}`);
-      combatLog(levelMsg, 'levelup');
-    }
-    draw();
-    clearTimeout(window.deathTimeout);
-    return true; // Enemy died
-  }
-  return false; // Enemy still alive
-}
-
-function enemyAttackPlayer(enemy) {
-  const enemyDmg = enemy.damage + Math.floor(Math.random() * 2) - 1;
-  state.player.hp -= enemyDmg;
-  const msg = `${enemy.name} hits you for ${enemyDmg} damage!`;
-  addMessage(`🩸 ${msg}`);
-  combatLog(msg, 'enemy-hit');
-
-  if (state.player.hp <= 0) {
-    state.player.hp = 0;
-    const deathMsg = "You have been defeated!";
-    addMessage(`💀 ${deathMsg}`);
-    combatLog(deathMsg, 'death');
-    updateUI();
-    window.deathTimeout = setTimeout(() => {
-      playerDefeated();
-      clearCombatLog();
-      draw();
-    }, 2000);
-    return true; // Player died
-  }
-  return false; // Player still alive
-}
-
-function flashStatus(color) {
-  const statusBar = document.getElementById('status-bar');
-  if (statusBar) {
-    statusBar.style.backgroundColor = color;
-    setTimeout(() => {
-      statusBar.style.backgroundColor = '';
-    }, 100);
-  }
-}
+// --- Death ---
 
 function playerDefeated() {
-  // Respawn at castle with partial HP
-  state.player.x = 6;
-  state.player.y = 6;
+  // Respawn in Cinderwick with partial HP, lose half gold
+  state.currentMapId = 'cinderwick';
+  state.returnPos = { x: 16, y: 18 }; // just south of town on the overworld
+  const map = currentMap();
+  state.player.x = map.spawn.x;
+  state.player.y = map.spawn.y;
   state.player.hp = Math.max(1, Math.floor(state.player.maxHp / 2));
   state.player.gold = Math.floor(state.player.gold / 2);
-  addMessage("💀 You were defeated and dragged to safety...");
-  addMessage(`🩸 Rescued with ${state.player.hp} HP. Lost half your gold.`);
-  clearCombatLog();
+  ui.addMessage('💀 You were defeated and dragged to safety in Cinderwick...');
+  ui.addMessage(`🩸 Rescued with ${state.player.hp} HP. Lost half your gold.`);
+  ui.clearCombatLog();
+  draw();
 }
 
+// --- Movement ---
+
 function movePlayer(dx, dy) {
+  const map = currentMap();
   const newX = state.player.x + dx;
   const newY = state.player.y + dy;
 
-  if (newX < 0 || newX >= WORLD_WIDTH || newY < 0 || newY >= WORLD_HEIGHT) {
-    addMessage("You can't go that way.");
+  if (newX < 0 || newX >= map.width || newY < 0 || newY >= map.height) {
+    ui.addMessage("You can't go that way.");
     return;
   }
 
-  const tile = state.world[newY][newX];
+  const tile = map.tiles[newY][newX];
   if (tile === TILES.WATER) {
-    addMessage("The water is too deep.");
+    ui.addMessage('The water is too deep.');
     return;
   }
-  if (tile === TILES.WALL || tile === TILES.TREE) {
-    addMessage("Blocked.");
+  if (tile.solid) {
+    ui.addMessage('Blocked.');
     return;
   }
 
-  const npc = NPCs.find(n => n.x === newX && n.y === newY);
+  const npc = currentNPCs().find(n => n.x === newX && n.y === newY);
   if (npc) {
-    // Bump into NPC to talk
     showDialogue(npc);
     return;
   }
 
-  // Check for items on the ground
-  const itemIndex = state.items.findIndex(i => i.x === newX && i.y === newY);
+  // Items on the ground
+  const itemIndex = map.items.findIndex(i => i.x === newX && i.y === newY);
   if (itemIndex !== -1) {
-    const item = state.items[itemIndex];
+    const item = map.items[itemIndex];
     if (item.type.id === 'potion') {
       state.player.inventory.push('potion');
-      state.items.splice(itemIndex, 1);
-      addMessage(`🧪 Potion collected! (${state.player.inventory.length} in bag)`);
-      renderInventory();
+      map.items.splice(itemIndex, 1);
+      ui.addMessage(`🧪 Potion collected! (${state.player.inventory.length} in bag)`);
+      ui.renderInventory(state, handleUsePotion);
     }
   }
 
-  // Bump combat - walk into enemy to attack
-  const enemy = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
+  // Bump combat — walk into enemy to attack, stay in place
+  const enemy = map.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (enemy) {
-    // Attack the enemy, but stay in place
-    playerAttackEnemy(enemy);
-    // Don't move into the enemy's tile
+    playerAttackEnemy(state, enemy);
     draw();
     return;
   }
 
   if (currentDialogueNPC) {
     currentDialogueNPC = null;
-    document.getElementById('dialogue-modal').classList.add('hidden');
+    ui.hideDialoguePanel();
+  }
+
+  // Map transitions
+  if (tile === TILES.TOWN) {
+    enterMap('cinderwick', { x: state.player.x, y: state.player.y });
+    return;
+  }
+  if (tile === TILES.EXIT) {
+    exitToOverworld();
+    return;
   }
 
   state.player.x = newX;
   state.player.y = newY;
 
-  // Move enemies after player moves
-  moveEnemies();
+  moveEnemies(state);
 
-  // Check if an enemy moved into your space (you were already there)
-  const encountered = state.enemies.find(e => e.alive && e.x === newX && e.y === newY);
+  // An enemy may have moved into your tile — surprise attack
+  const encountered = map.enemies.find(e => e.alive && e.x === newX && e.y === newY);
   if (encountered) {
-    // Enemy moved into YOUR space - they attack first (surprise!)
-    addMessage(`${encountered.name} attacks!`);
-    enemyAttackPlayer(encountered);
-    // You can counter-attack back!
-    playerAttackEnemy(encountered);
+    ui.addMessage(`${encountered.name} attacks!`);
+    enemyAttackPlayer(state, encountered, playerDefeated);
+    playerAttackEnemy(state, encountered);
     draw();
     return;
   }
 
   if (tile === TILES.CASTLE) {
-    addMessage("You see Lord British's castle.");
-  } else if (tile === TILES.VILLAGE) {
-    addMessage("A peaceful village.");
+    ui.addMessage("You see the king's castle.");
   } else if (tile === TILES.DUNGEON) {
-    addMessage("You enter the dark dungeon...");
+    ui.addMessage('You enter the dark dungeon...');
   } else if (tile === TILES.PATH) {
-    addMessage("A dirt path.");
+    ui.addMessage('A dirt path.');
   } else {
-    addMessage("You venture forth.");
+    ui.addMessage('You venture forth.');
   }
 
   draw();
 }
 
+// --- Inventory ---
+
+function handleUsePotion() {
+  const healed = usePotion(state.player);
+  if (healed === -1) return;
+  ui.addMessage(`🧪 Used potion: +${healed} HP`);
+  ui.updateUI(state);
+  ui.renderInventory(state, handleUsePotion);
+}
+
+// --- Action button ---
+
+function handleAction() {
+  if (currentDialogueNPC) {
+    advanceDialogue();
+    return;
+  }
+
+  const npc = getNearbyNPC();
+  if (npc) {
+    showDialogue(npc);
+  } else {
+    ui.addMessage('Nothing to interact with here.');
+  }
+}
+
+// --- Easter egg: Zhe's greeting ---
+
+const ZHE_SEQUENCE = ['ArrowLeft', 'ArrowLeft', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'ArrowUp', 'ArrowDown', 'a'];
+let keyBuffer = [];
+
+function checkZheEasterEgg(key) {
+  keyBuffer.push(key);
+  if (keyBuffer.length > ZHE_SEQUENCE.length) {
+    keyBuffer.shift();
+  }
+  if (keyBuffer.join(',') === ZHE_SEQUENCE.join(',')) {
+    ui.showZheMessage();
+    keyBuffer = [];
+  }
+}
+
+// --- Controls ---
+
 function setupControls() {
   document.addEventListener('keydown', (e) => {
-    // Check for Zhe easter egg (only during gameplay, not dialogue)
     if (!currentDialogueNPC) {
       checkZheEasterEgg(e.key);
     }
-    
+
     if (currentDialogueNPC) {
       advanceDialogue();
       e.preventDefault();
@@ -678,44 +367,25 @@ function setupControls() {
     }
   });
 
-  // Mobile buttons - during dialogue, they advance instead of move
-  document.getElementById('btn-up').addEventListener('click', function() {
-    if (currentDialogueNPC) {
-      advanceDialogue();
-    } else {
-      checkZheEasterEgg('ArrowUp');
-      movePlayer(0, -1);
-    }
+  // Mobile buttons — during dialogue they advance instead of move
+  const dpad = [
+    ['btn-up', 'ArrowUp', 0, -1],
+    ['btn-down', 'ArrowDown', 0, 1],
+    ['btn-left', 'ArrowLeft', -1, 0],
+    ['btn-right', 'ArrowRight', 1, 0]
+  ];
+  dpad.forEach(([id, key, dx, dy]) => {
+    document.getElementById(id).addEventListener('click', () => {
+      if (currentDialogueNPC) {
+        advanceDialogue();
+      } else {
+        checkZheEasterEgg(key);
+        movePlayer(dx, dy);
+      }
+    });
   });
 
-  document.getElementById('btn-down').addEventListener('click', function() {
-    if (currentDialogueNPC) {
-      advanceDialogue();
-    } else {
-      checkZheEasterEgg('ArrowDown');
-      movePlayer(0, 1);
-    }
-  });
-
-  document.getElementById('btn-left').addEventListener('click', function() {
-    if (currentDialogueNPC) {
-      advanceDialogue();
-    } else {
-      checkZheEasterEgg('ArrowLeft');
-      movePlayer(-1, 0);
-    }
-  });
-
-  document.getElementById('btn-right').addEventListener('click', function() {
-    if (currentDialogueNPC) {
-      advanceDialogue();
-    } else {
-      checkZheEasterEgg('ArrowRight');
-      movePlayer(1, 0);
-    }
-  });
-
-  document.getElementById('btn-action').addEventListener('click', function() {
+  document.getElementById('btn-action').addEventListener('click', () => {
     if (currentDialogueNPC) {
       advanceDialogue();
     } else {
@@ -724,117 +394,31 @@ function setupControls() {
     }
   });
 
-  document.getElementById('btn-action').addEventListener('click', handleAction);
-
-  // Inventory button - add both touch and click handlers
   const invBtn = document.getElementById('btn-inventory');
-  if (invBtn) {
-    invBtn.addEventListener('click', openInventory);
-    invBtn.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      console.log('Inventory button touch detected');
-      openInventory();
-    });
-    console.log('Inventory button handlers attached');
-  } else {
-    console.log('ERROR: btn-inventory element not found!');
-  }
-
-  document.getElementById('btn-close-inventory').addEventListener('click', closeInventory);
-}
-
-function openInventory() {
-  console.log('openInventory called');
-  const panel = document.getElementById('inventory-panel');
-  console.log('panel element:', panel);
-  if (panel) {
-    panel.classList.remove('hidden');
-    console.log('Panel should be visible now');
-  }
-  renderInventory();
-  addMessage("📦 Inventory opened");
-}
-
-function closeInventory() {
-  console.log('Closing inventory...');
-  document.getElementById('inventory-panel').classList.add('hidden');
-  addMessage("📦 Inventory closed");
-}
-
-function renderInventory() {
-  console.log('renderInventory called');
-  const grid = document.getElementById('inventory-grid');
-  console.log('grid element:', grid);
-  if (!grid) {
-    console.log('Grid not found!');
-    return;
-  }
-
-  const potionCount = state.player.inventory.filter(i => i === 'potion').length;
-  let html = '';
-
-  for (let i = 0; i < 12; i++) {
-    if (i < potionCount) {
-      html += `<div class="inventory-slot has-item" data-slot="${i}">🧪</div>`;
-    } else {
-      html += `<div class="inventory-slot" data-slot="${i}"></div>`;
-    }
-  }
-  grid.innerHTML = html;
-
-  // Add click handlers to all slots
-  grid.querySelectorAll('.inventory-slot').forEach(slot => {
-    slot.addEventListener('click', function() {
-      const slotIndex = parseInt(this.getAttribute('data-slot'));
-      if (slotIndex < potionCount) {
-        usePotion();
-      }
-    });
+  invBtn.addEventListener('click', () => ui.openInventory(state, handleUsePotion));
+  invBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    ui.openInventory(state, handleUsePotion);
   });
+
+  document.getElementById('btn-close-inventory').addEventListener('click', ui.closeInventory);
 }
 
-function usePotion() {
-  const potionIndex = state.player.inventory.indexOf('potion');
-  if (potionIndex === -1) return;
-
-  state.player.inventory.splice(potionIndex, 1);
-  const healAmount = ITEMS.POTION.heal;
-  const oldHp = state.player.hp;
-  state.player.hp = Math.min(state.player.maxHp, state.player.hp + healAmount);
-  const actualHeal = state.player.hp - oldHp;
-
-  addMessage(`🧪 Used potion: +${actualHeal} HP`);
-  updateUI();
-  renderInventory();
-}
-
-function handleAction() {
-  if (currentDialogueNPC) {
-    advanceDialogue();
-    return;
-  }
-
-  const npc = getNearbyNPC();
-  if (npc) {
-    showDialogue(npc);
-  } else {
-    addMessage("Nothing to interact with here.");
-  }
-}
+// --- Init ---
 
 function init() {
-  state.world = generateWorld();
-  state.enemies = spawnEnemies();
+  const overworld = state.maps.overworld;
+  overworld.enemies = spawnEnemies(overworld, NPCS_BY_MAP.overworld, state.player);
   setupControls();
   draw();
-  addMessage("Welcome, adventurer!");
-  addMessage("Walk into enemies to attack them.");
-  addMessage("You died? Respawn at castle, lose half gold.");
+  ui.addMessage('Welcome to Emberfall, adventurer!');
+  ui.addMessage('Walk into enemies to attack them.');
+  ui.addMessage('The town of Cinderwick lies at the center of the valley.');
 }
 
 try {
   init();
   console.log('Game initialized successfully');
-} catch(e) {
+} catch (e) {
   console.error('Game initialization error:', e);
 }
