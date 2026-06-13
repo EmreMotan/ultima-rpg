@@ -3,19 +3,23 @@
 export const TILE_SIZE = 32;
 
 export const TILES = {
-  GRASS:    { id: 0,  color: '#2d5a27', name: 'grass' },
-  WATER:    { id: 1,  color: '#3a7bd5', name: 'water',    solid: true },
-  WALL:     { id: 2,  color: '#4a4a4a', name: 'wall',     solid: true },
-  FLOOR:    { id: 3,  color: '#5a5a5a', name: 'floor' },
-  TREE:     { id: 4,  color: '#1a3a17', name: 'tree',     solid: true },
-  PATH:     { id: 5,  color: '#8b7355', name: 'path' },
-  TOWN:     { id: 7,  color: '#8a6a4a', name: 'town' },
-  DUNGEON:  { id: 8,  color: '#2a2a2a', name: 'dungeon' },
-  EXIT:     { id: 9,  color: '#c9a227', name: 'exit' },
-  MOUNTAIN: { id: 10, color: '#6a5a50', name: 'mountain', solid: true },
-  MARSH:    { id: 11, color: '#4a5a1a', name: 'marsh' },
-  SCORCHED: { id: 12, color: '#2a1808', name: 'scorched' },
-  FOREST:   { id: 13, color: '#1f4a1f', name: 'forest' }
+  GRASS:       { id: 0,  color: '#2d5a27', name: 'grass' },
+  WATER:       { id: 1,  color: '#3a7bd5', name: 'water',       solid: true },
+  WALL:        { id: 2,  color: '#4a4a4a', name: 'wall',        solid: true },
+  FLOOR:       { id: 3,  color: '#5a5a5a', name: 'floor' },
+  TREE:        { id: 4,  color: '#1a3a17', name: 'tree',        solid: true },
+  PATH:        { id: 5,  color: '#8b7355', name: 'path' },
+  TOWN:        { id: 7,  color: '#8a6a4a', name: 'town' },
+  DUNGEON:     { id: 8,  color: '#2a2a2a', name: 'dungeon' },
+  EXIT:        { id: 9,  color: '#c9a227', name: 'exit' },
+  MOUNTAIN:    { id: 10, color: '#6a5a50', name: 'mountain',    solid: true },
+  MARSH:       { id: 11, color: '#4a5a1a', name: 'marsh' },
+  SCORCHED:    { id: 12, color: '#2a1808', name: 'scorched' },
+  FOREST:      { id: 13, color: '#1f4a1f', name: 'forest' },
+  STAIRS_UP:   { id: 14, color: '#c9a227', name: 'stairs_up' },
+  STAIRS_DOWN: { id: 15, color: '#8b6914', name: 'stairs_down' },
+  LOCKED_DOOR: { id: 16, color: '#8b2222', name: 'locked_door', solid: true },
+  CHEST:       { id: 17, color: '#daa520', name: 'chest' },
 };
 
 // ── Overworld 64×64 ──────────────────────────────────────────────────────────
@@ -192,6 +196,59 @@ const CINDERWICK_LAYOUT = [
   'WWWWWWWWWWWEEWWWWWWWWWWW'
 ];
 
+// ── Cavern of Roots dungeons ──────────────────────────────────────────────────
+
+function generateCavernFloor1() {
+  const W = 20, H = 20;
+  const t = Array.from({ length: H }, () => Array(W).fill(TILES.WALL));
+
+  function room(x1, y1, x2, y2) {
+    for (let y = y1; y <= y2; y++)
+      for (let x = x1; x <= x2; x++)
+        t[y][x] = TILES.FLOOR;
+  }
+  function vline(x, y1, y2) { for (let y = y1; y <= y2; y++) t[y][x] = TILES.FLOOR; }
+  function hline(y, x1, x2) { for (let x = x1; x <= x2; x++) t[y][x] = TILES.FLOOR; }
+
+  t[0][9] = TILES.STAIRS_UP;     // exit back to overworld
+  room(7, 1, 12, 3);             // entry chamber
+  vline(9, 3, 9);                // main corridor south
+
+  room(1, 4, 5, 8);              // side room (west)
+  t[6][3] = TILES.CHEST;         // chest with dungeon key
+  hline(6, 5, 9);                // connector to main corridor
+
+  t[10][9] = TILES.LOCKED_DOOR;  // locked — needs key
+  vline(9, 11, 12);              // corridor past door
+
+  room(5, 13, 14, 17);           // lower chamber
+  vline(9, 17, 18);
+  t[18][9] = TILES.STAIRS_DOWN;  // descend to floor 2
+
+  return t;
+}
+
+function generateCavernFloor2() {
+  const W = 20, H = 20;
+  const t = Array.from({ length: H }, () => Array(W).fill(TILES.WALL));
+
+  function room(x1, y1, x2, y2) {
+    for (let y = y1; y <= y2; y++)
+      for (let x = x1; x <= x2; x++)
+        t[y][x] = TILES.FLOOR;
+  }
+  function vline(x, y1, y2) { for (let y = y1; y <= y2; y++) t[y][x] = TILES.FLOOR; }
+
+  t[0][9] = TILES.STAIRS_UP;    // back to floor 1
+  room(7, 1, 12, 3);            // entry chamber
+  vline(9, 3, 7);               // corridor to boss room
+
+  room(3, 8, 16, 17);           // boss chamber
+  t[16][9] = TILES.CHEST;       // chest with Ashen Boots (behind boss)
+
+  return t;
+}
+
 // ── Map registry ──────────────────────────────────────────────────────────────
 
 export function createMaps() {
@@ -217,6 +274,36 @@ export function createMaps() {
       items: [],
       hasEnemies: false,
       spawn: { x: 11, y: 22 }
+    },
+    cavern_1: {
+      id: 'cavern_1',
+      name: 'Cavern of Roots — Floor 1',
+      width: 20,
+      height: 20,
+      tiles: generateCavernFloor1(),
+      enemies: [],
+      items: [],
+      chests: [{ x: 3, y: 6, loot: ['dungeon_key'], open: false }],
+      hasEnemies: true,
+      enemyCount: 8,
+      enemySpawnRadius: 3,
+      dark: true,
+      spawn: { x: 9, y: 1 }
+    },
+    cavern_2: {
+      id: 'cavern_2',
+      name: 'Cavern of Roots — Floor 2',
+      width: 20,
+      height: 20,
+      tiles: generateCavernFloor2(),
+      enemies: [],
+      items: [],
+      chests: [{ x: 9, y: 16, loot: ['ashen_boots'], open: false }],
+      hasEnemies: true,
+      enemyCount: 5,
+      enemySpawnRadius: 3,
+      dark: true,
+      spawn: { x: 9, y: 1 }
     }
   };
 }

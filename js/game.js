@@ -3,11 +3,11 @@
 
 import { TILE_SIZE, TILES, createMaps } from './world.js';
 import { NPCS_BY_MAP } from './npcs.js';
-import { createPlayer, useItem } from './player.js';
+import { ITEMS, createPlayer, useItem } from './player.js';
 import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
 import * as ui from './ui.js';
 
-const VERSION = '0.13.0';
+const VERSION = '0.14.0';
 console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
@@ -16,7 +16,7 @@ const state = {
   camera: { x: 0, y: 0 },
   maps: createMaps(),
   currentMapId: 'overworld',
-  returnPos: null // overworld tile to return to when leaving a town/dungeon
+  mapStack: []  // [{mapId, x, y}] — stack of positions to return to on EXIT/STAIRS_UP
 };
 
 function currentMap() {
@@ -27,32 +27,36 @@ function currentNPCs() {
   return NPCS_BY_MAP[state.currentMapId] || [];
 }
 
+function isVisible(wx, wy) {
+  const map = currentMap();
+  if (!map.dark) return true;
+  return Math.max(Math.abs(wx - state.player.x), Math.abs(wy - state.player.y)) <= 4;
+}
+
 // --- Map transitions ---
 
-function enterMap(mapId, entryFrom) {
-  // Return position is one tile south so exiting doesn't re-trigger town entry
-  state.returnPos = { x: entryFrom.x, y: entryFrom.y + 1 };
+// Dungeon map → next floor ID
+const DUNGEON_NEXT = { cavern_1: 'cavern_2' };
+// Overworld DUNGEON tile position → first floor map ID
+function getDungeonForTile(x, y) {
+  if (x === 31 && y === 12) return 'cavern_1';
+  return null;
+}
+
+function pushAndEnter(mapId, returnX, returnY) {
+  state.mapStack.push({ mapId: state.currentMapId, x: returnX, y: returnY });
   state.currentMapId = mapId;
   const map = currentMap();
   state.player.x = map.spawn.x;
   state.player.y = map.spawn.y;
-  ui.addMessage(`You enter ${map.name}.`);
-  draw();
 }
 
-function exitToOverworld() {
-  state.currentMapId = 'overworld';
-  if (state.returnPos) {
-    state.player.x = state.returnPos.x;
-    state.player.y = state.returnPos.y;
-    state.returnPos = null;
-  } else {
-    const map = currentMap();
-    state.player.x = map.spawn.x;
-    state.player.y = map.spawn.y;
-  }
-  ui.addMessage('You return to the overworld.');
-  draw();
+function popMap() {
+  if (state.mapStack.length === 0) return;
+  const prev = state.mapStack.pop();
+  state.currentMapId = prev.mapId;
+  state.player.x = prev.x;
+  state.player.y = prev.y;
 }
 
 // --- Drawing ---
@@ -65,8 +69,8 @@ function draw() {
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
 
-  // Fill canvas so no dead zone shows at world edges
-  ctx.fillStyle = '#2d5a27';
+  // Fill canvas background (black for dark dungeons, grass green for overworld)
+  ctx.fillStyle = map.dark ? '#000' : '#2d5a27';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const tilesX = Math.ceil(canvas.width / TILE_SIZE);
@@ -86,8 +90,31 @@ function draw() {
         const px = dx * TILE_SIZE;
         const py = dy * TILE_SIZE;
 
+        // Lighting: hide tiles outside vision radius in dark dungeons
+        if (map.dark) {
+          const vdx = worldX - state.player.x;
+          const vdy = worldY - state.player.y;
+          if (Math.max(Math.abs(vdx), Math.abs(vdy)) > 4) {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+            continue;
+          }
+        }
+
         ctx.fillStyle = tile.color;
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+        // Special tile icons
+        if (tile === TILES.STAIRS_UP || tile === TILES.STAIRS_DOWN || tile === TILES.CHEST || tile === TILES.LOCKED_DOOR) {
+          ctx.save();
+          ctx.fillStyle = tile === TILES.LOCKED_DOOR ? '#ff6666' : '#fff';
+          ctx.font = 'bold 14px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const icon = tile === TILES.STAIRS_UP ? '↑' : tile === TILES.STAIRS_DOWN ? '↓' : tile === TILES.CHEST ? '◆' : '🔒';
+          ctx.fillText(icon, px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+          ctx.restore();
+        }
       }
     }
   }
@@ -129,6 +156,7 @@ function draw() {
   // Enemies
   currentMap().enemies.forEach(enemy => {
     if (!enemy.alive) return;
+    if (!isVisible(enemy.x, enemy.y)) return;
     const enemyScreenX = (enemy.x - state.camera.x) * TILE_SIZE;
     const enemyScreenY = (enemy.y - state.camera.y) * TILE_SIZE;
     if (enemyScreenX < -TILE_SIZE || enemyScreenX > canvas.width ||
@@ -149,6 +177,7 @@ function draw() {
 
   // Items on the ground
   currentMap().items.forEach(item => {
+    if (!isVisible(item.x, item.y)) return;
     const itemScreenX = (item.x - state.camera.x) * TILE_SIZE;
     const itemScreenY = (item.y - state.camera.y) * TILE_SIZE;
     if (itemScreenX < -TILE_SIZE || itemScreenX > canvas.width ||
@@ -257,8 +286,8 @@ function getNearbyNPC() {
 
 function playerDefeated() {
   // Respawn in Cinderwick with partial HP, lose half gold
+  state.mapStack = [{ mapId: 'overworld', x: 31, y: 25 }];
   state.currentMapId = 'cinderwick';
-  state.returnPos = { x: 31, y: 25 }; // just south of Cinderwick on the overworld
   const map = currentMap();
   state.player.x = map.spawn.x;
   state.player.y = map.spawn.y;
@@ -283,6 +312,22 @@ function movePlayer(dx, dy) {
   }
 
   const tile = map.tiles[newY][newX];
+
+  // Locked door: intercept before solid check
+  if (tile === TILES.LOCKED_DOOR) {
+    const keyIdx = state.player.inventory.indexOf('dungeon_key');
+    if (keyIdx !== -1) {
+      state.player.inventory.splice(keyIdx, 1);
+      map.tiles[newY][newX] = TILES.FLOOR;
+      ui.addMessage('🗝️ The door grinds open.');
+      state.player.x = newX;
+      state.player.y = newY;
+      draw();
+    } else {
+      ui.addMessage('🔒 The door is locked. You need a key.');
+    }
+    return;
+  }
 
   // Movement gating
   if (tile === TILES.WATER) {
@@ -332,18 +377,59 @@ function movePlayer(dx, dy) {
     closeDialogue();
   }
 
-  // Map transitions
+  // Map transitions (before moving player)
   if (tile === TILES.TOWN) {
-    enterMap('cinderwick', { x: state.player.x, y: state.player.y });
+    pushAndEnter('cinderwick', state.player.x, state.player.y + 1);
+    ui.addMessage('You enter Cinderwick.');
+    draw();
     return;
   }
-  if (tile === TILES.EXIT) {
-    exitToOverworld();
+  if (tile === TILES.EXIT || tile === TILES.STAIRS_UP) {
+    popMap();
+    const zoneName = currentMap().name;
+    ui.addMessage(tile === TILES.EXIT ? 'You return to the overworld.' : `You ascend. ${zoneName}.`);
+    draw();
+    return;
+  }
+  if (tile === TILES.DUNGEON) {
+    const dungeonId = getDungeonForTile(newX, newY);
+    if (dungeonId) {
+      pushAndEnter(dungeonId, newX, newY + 1);
+      ui.addMessage('You descend into the darkness...');
+      draw();
+      return;
+    }
+    // Unimplemented dungeon — fall through to move there
+  }
+  if (tile === TILES.STAIRS_DOWN) {
+    const nextId = DUNGEON_NEXT[state.currentMapId];
+    if (nextId) {
+      pushAndEnter(nextId, state.player.x, state.player.y);
+      ui.addMessage('You descend deeper into the cavern...');
+      draw();
+    }
     return;
   }
 
   state.player.x = newX;
   state.player.y = newY;
+
+  // Open chest on step
+  const chest = currentMap().chests?.find(c => c.x === newX && c.y === newY && !c.open);
+  if (chest) {
+    chest.open = true;
+    chest.loot.forEach(itemId => {
+      if (state.player.inventory.length < 12) {
+        state.player.inventory.push(itemId);
+        ui.addMessage(`📦 You open the chest! Found: ${ITEMS[itemId].name}`);
+      }
+    });
+    if (chest.loot.includes('ashen_boots')) {
+      state.player.ashenBoots = true;
+      ui.addMessage('🥾 Old warmth-magic in the soles. You can now cross mountain passes!');
+    }
+    ui.renderInventory(state, handleItemAction);
+  }
 
   moveEnemies(state);
 
@@ -358,7 +444,7 @@ function movePlayer(dx, dy) {
   }
 
   if (tile === TILES.DUNGEON) {
-    ui.addMessage('A dark entrance looms before you.');
+    ui.addMessage('A dark entrance looms before you. You are not yet ready.');
   } else if (tile === TILES.FOREST) {
     ui.addMessage('The forest floor is cold and quiet.');
   } else if (tile === TILES.MARSH) {
@@ -495,6 +581,20 @@ function setupControls() {
 function init() {
   const overworld = state.maps.overworld;
   overworld.enemies = spawnEnemies(overworld, NPCS_BY_MAP.overworld, state.player);
+
+  const cavern1 = state.maps.cavern_1;
+  cavern1.enemies = spawnEnemies(cavern1, [], state.player);
+
+  const cavern2 = state.maps.cavern_2;
+  cavern2.enemies = spawnEnemies(cavern2, [], state.player);
+  cavern2.enemies.push({
+    id: 99, x: 9, y: 12,
+    hp: 20, maxHp: 20, damage: 3,
+    name: 'Rootspawn', color: '#4a7a3a',
+    exp: 100, gold: 50,
+    alive: true, isBoss: true
+  });
+
   setupZoomPrevention();
   setupControls();
   draw();

@@ -10,7 +10,9 @@ export const ITEMS = {
   ember_blade: { id: 'ember_blade', kind: 'weapon', name: 'Ember Blade', icon: '🔥', bonus: 7 },
   leather_vest: { id: 'leather_vest', kind: 'armor', name: 'Leather Vest', icon: '🦺', bonus: 1 },
   chainmail: { id: 'chainmail', kind: 'armor', name: 'Chainmail', icon: '🛡️', bonus: 2 },
-  ashen_plate: { id: 'ashen_plate', kind: 'armor', name: 'Ashen Plate', icon: '🛡️', bonus: 4 }
+  ashen_plate: { id: 'ashen_plate', kind: 'armor', name: 'Ashen Plate', icon: '🛡️', bonus: 4 },
+  dungeon_key: { id: 'dungeon_key', kind: 'key', name: 'Cavern Key', icon: '🗝️', color: '#c9a227' },
+  ashen_boots: { id: 'ashen_boots', kind: 'quest', name: 'Ashen Boots', icon: '👢', color: '#8b6914' }
 };
 
 export function createPlayer() {
@@ -54,6 +56,9 @@ export function useItem(player, index) {
     player.inventory.splice(index, 1);
     return `🧪 Used ${item.name}: +${healed} HP`;
   }
+
+  if (item.kind === 'key') return 'Use the key on a locked door.';
+  if (item.kind === 'quest') return `${item.icon} ${item.name} — a special item.`;
 
   if (item.kind === 'weapon' || item.kind === 'armor') {
     const slot = item.kind;

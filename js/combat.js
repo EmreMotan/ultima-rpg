@@ -30,24 +30,29 @@ function regionEnemies(tileId) {
   return REGION_ENEMIES[tileId] || ['CINDER_SLIME', 'ASH_WOLF'];
 }
 
+const BLOCKED_SPAWN_TILES = new Set([
+  TILES.TOWN, TILES.DUNGEON, TILES.CHEST, TILES.STAIRS_UP, TILES.STAIRS_DOWN
+]);
+
 export function spawnEnemies(map, npcs, player) {
   const enemies = [];
   if (!map.hasEnemies) return enemies;
 
-  const count = 40;
+  const count = map.enemyCount ?? 40;
+  const safeRadius = map.enemySpawnRadius ?? 9;
   let attempts = 0;
 
   for (let i = 0; i < count; i++) {
     let x, y, valid;
     do {
-      x = 2 + Math.floor(Math.random() * (map.width - 4));
-      y = 2 + Math.floor(Math.random() * (map.height - 4));
+      x = 1 + Math.floor(Math.random() * (map.width - 2));
+      y = 1 + Math.floor(Math.random() * (map.height - 2));
       valid = true;
 
       const tile = map.tiles[y][x];
-      if (tile.solid || tile === TILES.TOWN || tile === TILES.DUNGEON) valid = false;
+      if (tile.solid || BLOCKED_SPAWN_TILES.has(tile)) valid = false;
       if (npcs.some(n => n.x === x && n.y === y)) valid = false;
-      if (Math.abs(x - player.x) < 9 && Math.abs(y - player.y) < 9) valid = false;
+      if (Math.abs(x - player.x) < safeRadius && Math.abs(y - player.y) < safeRadius) valid = false;
       if (++attempts > 5000) return enemies; // safety exit
     } while (!valid);
 
@@ -102,6 +107,13 @@ export function playerAttackEnemy(state, enemy) {
   const msg = `You hit ${enemy.name} for ${playerDmg} damage!`;
   addMessage(`⚔️ ${msg}`);
   combatLog(msg, 'player-hit');
+
+  // Boss phase 2 at 50% HP
+  if (enemy.isBoss && !enemy.phase2 && enemy.hp > 0 && enemy.hp <= enemy.maxHp / 2) {
+    enemy.phase2 = true;
+    enemy.damage = 6;
+    addMessage(`⚠️ The roots writhe violently! ${enemy.name} grows stronger!`);
+  }
 
   if (enemy.hp <= 0) {
     enemy.alive = false;
