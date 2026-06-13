@@ -14,9 +14,20 @@ export function updateUI(state) {
 
 export function addMessage(text) {
   const log = document.getElementById('message-log');
+  const first = log.firstChild;
+
+  // Collapse consecutive identical messages into a count
+  if (first && first.dataset.msg === text) {
+    const count = (parseInt(first.dataset.count) || 1) + 1;
+    first.dataset.count = count;
+    first.textContent = `${text} ×${count}`;
+    return;
+  }
+
   const msg = document.createElement('div');
   msg.textContent = text;
-  log.insertBefore(msg, log.firstChild);
+  msg.dataset.msg = text;
+  log.insertBefore(msg, first);
   while (log.children.length > 5) {
     log.removeChild(log.lastChild);
   }
