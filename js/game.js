@@ -7,7 +7,7 @@ import { createPlayer, useItem } from './player.js';
 import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
 import * as ui from './ui.js';
 
-const VERSION = '0.12.0';
+const VERSION = '0.12.1';
 console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
@@ -64,6 +64,10 @@ function draw() {
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
 
+  // Fill canvas so no dead zone shows at world edges
+  ctx.fillStyle = '#2d5a27';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   const tilesX = Math.ceil(canvas.width / TILE_SIZE);
   const tilesY = Math.ceil(canvas.height / TILE_SIZE);
 
@@ -83,8 +87,6 @@ function draw() {
 
         ctx.fillStyle = tile.color;
         ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-        ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-        ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
       }
     }
   }

@@ -19,6 +19,7 @@ html, body {
 #game-container {
   width: 100vw;
   height: 100vh;
+  height: 100dvh; /* excludes mobile browser chrome */
   display: flex;
   flex-direction: column;
 }
@@ -62,7 +63,8 @@ html, body {
   grid-template-rows: repeat(3, 1fr);
   gap: 4px;
   padding: 4px;
-  height: 42vh;
+  /* 38vh fits 3 button rows comfortably within mobile chrome */
+  height: 38vh;
 }
 
 button {
@@ -73,7 +75,7 @@ button {
   background: #4a4a7a;
   border: none;
   border-radius: 8px;
-  color: #c0c0d8;
+  color: #e8e8ff;
   font-family: 'Courier New', monospace;
   font-size: 22px;
   font-weight: bold;
@@ -125,9 +127,10 @@ button {
 }
 
 #message-log div {
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* ── Zone / minimap cell (top-right of grid) ─────────── */
@@ -162,7 +165,7 @@ button {
 #dialogue-modal {
   position: absolute;
   /* sits just above the control panel */
-  bottom: 42vh;
+  bottom: 38vh;
   left: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.92);
@@ -238,7 +241,7 @@ button {
 
 #inventory-panel {
   position: absolute;
-  bottom: 42vh;
+  bottom: 38vh;
   left: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.95);

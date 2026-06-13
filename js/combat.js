@@ -28,7 +28,7 @@ export function spawnEnemies(map, npcs, player) {
       const tile = map.tiles[y][x];
       if (tile.solid || tile === TILES.CASTLE || tile === TILES.TOWN) valid = false;
       if (npcs.some(n => n.x === x && n.y === y)) valid = false;
-      if (Math.abs(x - player.x) < 5 && Math.abs(y - player.y) < 5) valid = false;
+      if (Math.abs(x - player.x) < 9 && Math.abs(y - player.y) < 9) valid = false;
     } while (!valid);
 
     const type = ENEMY_TYPES[types[Math.floor(Math.random() * types.length)]];
