@@ -59,7 +59,11 @@ export const NPCS_BY_MAP = {
       },
       shop: {
         type: 'store',
-        items: [{ id: 'potion', name: 'Health Potion', price: 15 }]
+        items: [
+          { id: 'potion', name: 'Health Potion', price: 15 },
+          { id: 'short_sword', name: 'Short Sword', price: 80 },
+          { id: 'leather_vest', name: 'Leather Vest', price: 60 }
+        ]
       }
     },
     {

@@ -1,7 +1,7 @@
 // combat.js — bump combat, enemy spawning and AI
 
 import { TILES, isSolid } from './world.js';
-import { ITEMS } from './player.js';
+import { ITEMS, weaponBonus, totalDef } from './player.js';
 import { addMessage, combatLog, clearCombatLog, updateUI } from './ui.js';
 
 export const ENEMY_TYPES = {
@@ -74,7 +74,8 @@ export function moveEnemies(state) {
 // Returns true if the enemy died
 export function playerAttackEnemy(state, enemy) {
   const map = state.maps[state.currentMapId];
-  const playerDmg = 2 + Math.floor(Math.random() * 3); // 2-4 damage
+  // player attack = 2 + STR + weapon bonus + random(0, 2)
+  const playerDmg = 2 + state.player.str + weaponBonus(state.player) + Math.floor(Math.random() * 3);
   enemy.hp -= playerDmg;
   const msg = `You hit ${enemy.name} for ${playerDmg} damage!`;
   addMessage(`⚔️ ${msg}`);
@@ -90,7 +91,7 @@ export function playerAttackEnemy(state, enemy) {
 
     // Chance to drop potion (50%)
     if (Math.random() < 0.5) {
-      map.items.push({ x: enemy.x, y: enemy.y, type: ITEMS.POTION });
+      map.items.push({ x: enemy.x, y: enemy.y, type: ITEMS.potion });
       addMessage('🧪 A potion was dropped!');
     }
 
@@ -112,7 +113,8 @@ export function playerAttackEnemy(state, enemy) {
 
 // Returns true if the player died
 export function enemyAttackPlayer(state, enemy, onDeath) {
-  const enemyDmg = enemy.damage + Math.floor(Math.random() * 2) - 1;
+  // incoming damage = max(1, enemy damage - player DEF), with the old ±1 variance
+  const enemyDmg = Math.max(1, enemy.damage + Math.floor(Math.random() * 2) - 1 - totalDef(state.player));
   state.player.hp -= enemyDmg;
   const msg = `${enemy.name} hits you for ${enemyDmg} damage!`;
   addMessage(`🩸 ${msg}`);

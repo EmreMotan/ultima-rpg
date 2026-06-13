@@ -53,6 +53,15 @@ button {
   font-size: 10px;
 }
 
+#equipment {
+  color: #c9a227;
+  font-size: 10px;
+}
+
+#status-bar span {
+  white-space: nowrap;
+}
+
 #zone-name {
   background: rgba(0, 0, 0, 0.5);
   padding: 2px 8px;
@@ -302,6 +311,24 @@ button {
 .inventory-slot.has-item {
   background: rgba(60, 60, 60, 0.8);
   border-color: #888;
+}
+
+.inventory-slot.selected {
+  border-color: #ffd700;
+  box-shadow: 0 0 6px #ffd700;
+}
+
+#btn-item-action {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #5a5;
+  border-radius: 4px;
+  background: #2a3a2a;
+  color: #88ff88;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
 .inventory-slot:active {

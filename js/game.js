@@ -3,11 +3,11 @@
 
 import { TILE_SIZE, TILES, createMaps, isSolid } from './world.js';
 import { NPCS_BY_MAP } from './npcs.js';
-import { createPlayer, usePotion } from './player.js';
+import { createPlayer, useItem } from './player.js';
 import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
 import * as ui from './ui.js';
 
-const VERSION = '0.10.0';
+const VERSION = '0.11.0';
 console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
@@ -299,15 +299,13 @@ function movePlayer(dx, dy) {
   const itemIndex = map.items.findIndex(i => i.x === newX && i.y === newY);
   if (itemIndex !== -1) {
     const item = map.items[itemIndex];
-    if (item.type.id === 'potion') {
-      if (state.player.inventory.length >= 12) {
-        ui.addMessage('🎒 Your bag is full.');
-      } else {
-        state.player.inventory.push('potion');
-        map.items.splice(itemIndex, 1);
-        ui.addMessage(`🧪 Potion collected! (${state.player.inventory.length} in bag)`);
-        ui.renderInventory(state, handleUsePotion);
-      }
+    if (state.player.inventory.length >= 12) {
+      ui.addMessage('🎒 Your bag is full.');
+    } else {
+      state.player.inventory.push(item.type.id);
+      map.items.splice(itemIndex, 1);
+      ui.addMessage(`${item.type.icon} ${item.type.name} collected! (${state.player.inventory.length} in bag)`);
+      ui.renderInventory(state, handleItemAction);
     }
   }
 
@@ -363,12 +361,12 @@ function movePlayer(dx, dy) {
 
 // --- Inventory ---
 
-function handleUsePotion() {
-  const healed = usePotion(state.player);
-  if (healed === -1) return;
-  ui.addMessage(`🧪 Used potion: +${healed} HP`);
+function handleItemAction(slotIndex) {
+  const msg = useItem(state.player, slotIndex);
+  if (!msg) return;
+  ui.addMessage(msg);
   ui.updateUI(state);
-  ui.renderInventory(state, handleUsePotion);
+  ui.renderInventory(state, handleItemAction);
 }
 
 // --- Action button ---
@@ -473,10 +471,10 @@ function setupControls() {
   });
 
   const invBtn = document.getElementById('btn-inventory');
-  invBtn.addEventListener('click', () => ui.openInventory(state, handleUsePotion));
+  invBtn.addEventListener('click', () => ui.openInventory(state, handleItemAction));
   invBtn.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    ui.openInventory(state, handleUsePotion);
+    ui.openInventory(state, handleItemAction);
   });
 
   document.getElementById('btn-close-inventory').addEventListener('click', ui.closeInventory);
