@@ -1,13 +1,13 @@
 // game.js — main loop, input, draw, map transitions
 // Emberfall RPG (see DESIGN.md)
 
-import { TILE_SIZE, TILES, createMaps, isSolid } from './world.js';
+import { TILE_SIZE, TILES, createMaps } from './world.js';
 import { NPCS_BY_MAP } from './npcs.js';
 import { createPlayer, useItem } from './player.js';
 import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
 import * as ui from './ui.js';
 
-const VERSION = '0.12.1';
+const VERSION = '0.13.0';
 console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
@@ -30,7 +30,8 @@ function currentNPCs() {
 // --- Map transitions ---
 
 function enterMap(mapId, entryFrom) {
-  state.returnPos = entryFrom;
+  // Return position is one tile south so exiting doesn't re-trigger town entry
+  state.returnPos = { x: entryFrom.x, y: entryFrom.y + 1 };
   state.currentMapId = mapId;
   const map = currentMap();
   state.player.x = map.spawn.x;
@@ -257,7 +258,7 @@ function getNearbyNPC() {
 function playerDefeated() {
   // Respawn in Cinderwick with partial HP, lose half gold
   state.currentMapId = 'cinderwick';
-  state.returnPos = { x: 16, y: 18 }; // just south of town on the overworld
+  state.returnPos = { x: 31, y: 25 }; // just south of Cinderwick on the overworld
   const map = currentMap();
   state.player.x = map.spawn.x;
   state.player.y = map.spawn.y;
@@ -282,11 +283,19 @@ function movePlayer(dx, dy) {
   }
 
   const tile = map.tiles[newY][newX];
+
+  // Movement gating
   if (tile === TILES.WATER) {
-    ui.addMessage('The water is too deep.');
-    return;
-  }
-  if (tile.solid) {
+    if (!state.player.hasRowboat) {
+      ui.addMessage('The water is too deep. You need a boat.');
+      return;
+    }
+  } else if (tile === TILES.MOUNTAIN) {
+    if (!state.player.ashenBoots) {
+      ui.addMessage('The mountains bar your path.');
+      return;
+    }
+  } else if (tile.solid) {
     ui.addMessage('Blocked.');
     return;
   }
@@ -348,13 +357,17 @@ function movePlayer(dx, dy) {
     return;
   }
 
-  if (tile === TILES.CASTLE) {
-    ui.addMessage("You see the king's castle.");
-  } else if (tile === TILES.DUNGEON) {
-    ui.addMessage('You enter the dark dungeon...');
-  } else if (tile === TILES.PATH) {
-    ui.addMessage('A dirt path.');
-  } else {
+  if (tile === TILES.DUNGEON) {
+    ui.addMessage('A dark entrance looms before you.');
+  } else if (tile === TILES.FOREST) {
+    ui.addMessage('The forest floor is cold and quiet.');
+  } else if (tile === TILES.MARSH) {
+    ui.addMessage('Your boots sink into the marsh.');
+  } else if (tile === TILES.SCORCHED) {
+    ui.addMessage('The ground here is burnt and lifeless.');
+  } else if (tile === TILES.MOUNTAIN) {
+    ui.addMessage('You cross the mountain pass.');
+  } else if (tile !== TILES.PATH && tile !== TILES.GRASS) {
     ui.addMessage('You venture forth.');
   }
 
@@ -485,9 +498,8 @@ function init() {
   setupZoomPrevention();
   setupControls();
   draw();
-  ui.addMessage('Welcome to Emberfall, adventurer!');
-  ui.addMessage('Walk into enemies to attack them.');
-  ui.addMessage('The town of Cinderwick lies at the center of the valley.');
+  ui.addMessage('The Hearthvein Valley. Cold, but warmer than beyond the peaks.');
+  ui.addMessage('Cinderwick lies to the north.');
 }
 
 window.__emberfallDebug = { state, draw };

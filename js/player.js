@@ -15,8 +15,8 @@ export const ITEMS = {
 
 export function createPlayer() {
   return {
-    x: 16,
-    y: 19,
+    x: 31,
+    y: 32,
     hp: 20,
     maxHp: 20,
     str: 1,
@@ -24,9 +24,11 @@ export function createPlayer() {
     gold: 0,
     level: 1,
     exp: 0,
-    weapon: 'rusty_dagger', // equipped automatically at start
+    weapon: 'rusty_dagger',
     armor: null,
-    inventory: [] // array of item ids, max 12
+    inventory: [],
+    ashenBoots: false,  // cross mountains — granted by Cavern of Roots
+    hasRowboat: false   // cross water — granted by Greyhollow ferryman
   };
 }
 
