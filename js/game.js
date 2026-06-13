@@ -7,7 +7,7 @@ import { createPlayer, useItem } from './player.js';
 import { spawnEnemies, moveEnemies, playerAttackEnemy, enemyAttackPlayer } from './combat.js';
 import * as ui from './ui.js';
 
-const VERSION = '0.11.0';
+const VERSION = '0.12.0';
 console.log('Emberfall RPG v' + VERSION + ' loaded');
 
 // Game state
@@ -470,12 +470,7 @@ function setupControls() {
     }
   });
 
-  const invBtn = document.getElementById('btn-inventory');
-  invBtn.addEventListener('click', () => ui.openInventory(state, handleItemAction));
-  invBtn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    ui.openInventory(state, handleItemAction);
-  });
+  document.getElementById('btn-inventory').addEventListener('click', () => ui.openInventory(state, handleItemAction));
 
   document.getElementById('btn-close-inventory').addEventListener('click', ui.closeInventory);
 }

@@ -3,12 +3,12 @@
 import { ITEMS } from './player.js';
 
 export function updateUI(state) {
-  const player = state.player;
-  document.getElementById('hp').textContent = `HP: ${player.hp}/${player.maxHp}`;
-  document.getElementById('equipment').textContent =
-    `${player.weapon ? ITEMS[player.weapon].name : '—'} / ${player.armor ? ITEMS[player.armor].name : '—'}`;
-  document.getElementById('gold').textContent = `Gold: ${player.gold}`;
-  document.getElementById('level').textContent = `LVL: ${player.level}`;
+  const p = state.player;
+  document.getElementById('stat-hp').textContent = `${p.hp}/${p.maxHp}`;
+  document.getElementById('stat-weapon').textContent = p.weapon ? ITEMS[p.weapon].name : '—';
+  document.getElementById('stat-armor').textContent = p.armor ? ITEMS[p.armor].name : '—';
+  document.getElementById('stat-gold').textContent = p.gold;
+  document.getElementById('stat-level').textContent = p.level;
   document.getElementById('zone-name').textContent = state.maps[state.currentMapId].name;
 }
 
@@ -22,41 +22,17 @@ export function addMessage(text) {
   }
 }
 
-// --- Combat log (persistent, top of screen) ---
-
-let combatMessages = [];
-
-export function combatLog(msg, className = '') {
-  combatMessages.unshift({ text: msg, class: className });
-  while (combatMessages.length > 6) {
-    combatMessages.pop();
-  }
-  updateCombatLogUI();
-}
-
-function updateCombatLogUI() {
-  const logEl = document.getElementById('combat-log');
-  if (combatMessages.length > 0) {
-    logEl.classList.remove('hidden');
-    logEl.innerHTML = combatMessages.map(m => `<div class="${m.class}">${m.text}</div>`).join('');
-  } else {
-    logEl.classList.add('hidden');
-  }
+// Combat messages go through addMessage — no separate combat log element.
+export function combatLog(msg) {
+  addMessage(msg);
 }
 
 export function clearCombatLog() {
-  combatMessages = [];
-  updateCombatLogUI();
+  // no-op: messages persist in the log panel
 }
 
-export function flashStatus(color) {
-  const statusBar = document.getElementById('status-bar');
-  if (statusBar) {
-    statusBar.style.backgroundColor = color;
-    setTimeout(() => {
-      statusBar.style.backgroundColor = '';
-    }, 100);
-  }
+export function flashStatus() {
+  // reserved for future screen-edge flash effect
 }
 
 // --- Dialogue panel (keyword system) ---

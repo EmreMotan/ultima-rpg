@@ -8,35 +8,42 @@
 </head>
 <body>
   <div id="game-container">
+
+    <!-- Game viewport -->
     <canvas id="game-canvas"></canvas>
-    <div id="ui-overlay">
-      <div id="status-bar">
-        <span id="hp">HP: 20/20</span>
-        <span id="equipment">—</span>
-        <span id="gold">Gold: 0</span>
-        <span id="level">LVL: 1</span>
-        <span id="version">v0.11.0</span>
-      </div>
-      <div id="zone-name"></div>
-      <div id="message-log"></div>
+
+    <!-- Stats overlay: transparent, top-right of game area -->
+    <div id="stats-overlay">
+      <div>❤️ <span id="stat-hp">20/20</span></div>
+      <div>⚔️ <span id="stat-weapon">Rusty Dagger</span></div>
+      <div>🛡️ <span id="stat-armor">—</span></div>
+      <div>💰 <span id="stat-gold">0</span></div>
+      <div>LVL <span id="stat-level">1</span></div>
     </div>
-    <div id="inventory-panel" class="hidden">
-      <div id="inventory-header">
-        <span>Inventory</span>
-        <button id="btn-close-inventory">✕</button>
+
+    <!-- Control panel: 3×3 grid -->
+    <div id="control-panel">
+      <div id="message-log-cell">
+        <div id="message-log"></div>
       </div>
-      <div id="inventory-grid"></div>
-      <div id="inventory-hint">Select an item to use it</div>
-    </div>
-    <div id="controls">
       <button id="btn-up">▲</button>
+      <div id="zone-cell">
+        <div id="zone-name"></div>
+        <div id="version">v0.12.0</div>
+      </div>
+
       <button id="btn-left">◀</button>
-      <button id="btn-action">A</button>
-      <button id="btn-inventory">📦</button>
+      <button id="btn-action">FIGHT</button>
       <button id="btn-right">▶</button>
+
+      <button id="btn-spell" disabled>SPELL</button>
       <button id="btn-down">▼</button>
+      <button id="btn-inventory">MENU</button>
     </div>
+
   </div>
+
+  <!-- Dialogue modal — overlays game canvas -->
   <div id="dialogue-modal" class="hidden">
     <div id="dialogue-content">
       <div id="dialogue-name"></div>
@@ -44,7 +51,17 @@
       <div id="dialogue-keywords"></div>
     </div>
   </div>
-  <div id="combat-log" class="hidden"></div>
-  <script type="module" src="js/game.js?v=0.11.0"></script>
+
+  <!-- Inventory panel — overlays game canvas when open -->
+  <div id="inventory-panel" class="hidden">
+    <div id="inventory-header">
+      <span>Inventory</span>
+      <button id="btn-close-inventory">✕</button>
+    </div>
+    <div id="inventory-grid"></div>
+    <div id="inventory-hint">Select an item</div>
+  </div>
+
+  <script type="module" src="js/game.js?v=0.12.0"></script>
 </body>
 </html>
